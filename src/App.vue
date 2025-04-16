@@ -12,7 +12,7 @@ import Select from "./components/Select.vue";
 
 
 export default {
-  components: { Login, Select },
+  components: { Login: Login, Select: Select },
   data() {
     return {
       token: null,
