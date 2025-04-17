@@ -1,15 +1,16 @@
 <template>
   <div class="main-dialog">
+    <!-- Шапка с информацией о сотруднике -->
     <div class="header">
       <div class="title">
         {{ organizationName }} / {{ departmentName }} / {{ position }}: {{ staffName }}
       </div>
-      <button class="menu-button" @click="toggleMenu">☰</button>
     </div>
 
+    <!-- Блок фильтров и выбора даты -->
     <div class="filters">
       <div class="date-controls">
-        <button class="arrow-button" @click="shiftPeriod(-1)">←</button>
+        <button class="arrow-button" @click="shiftPeriod(-1)" aria-label="Предыдущий период">←</button>
 
         <div class="date-input-container">
           <input 
@@ -18,20 +19,25 @@
             placeholder="ДД.ММ.ГГ - ДД.ММ.ГГ"
             class="date-input"
             readonly
+            aria-label="Диапазон дат"
           >
-          <button class="calendar-button" @click="toggleCalendar">📅</button>
+          <button class="calendar-button" @click="toggleCalendar" aria-label="Открыть календарь">📅</button>
 
+          <!-- Календарь с возможностью выбора периода -->
           <v-date-picker
             v-if="calendarVisible"
             v-model="calendarRange"
             is-range
+            :mode="periodType === 'day' ? 'single' : 'range'"
             :popover="{ visibility: 'click' }"
+            @clickOutside="calendarVisible = false"
           />
         </div>
 
-        <button class="arrow-button" @click="shiftPeriod(1)">→</button>
+        <button class="arrow-button" @click="shiftPeriod(1)" aria-label="Следующий период">→</button>
       </div>
 
+      <!-- Выбор типа периода -->
       <div class="period-type">
         <button 
           :class="{ active: periodType === 'day' }" 
@@ -48,6 +54,7 @@
       </div>
     </div>
 
+    <!-- Журнал задач -->
     <div class="journal">
       <table>
         <thead>
@@ -63,14 +70,23 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(task, index) in filteredTasks" :key="index" 
-          :class="{inactive: task.inactive}">
+          <tr 
+            v-for="(task, index) in filteredTasks" 
+            :key="index" 
+            :class="{ inactive: task.inactive }"
+          >
             <td> 
-              <input type="checkbox" v-model="task.inactive" @change="onTaskCheck(task)">
+              <input 
+                type="checkbox" 
+                v-model="task.inactive" 
+                @change="onTaskCheck(task)"
+                :id="'task-checkbox-' + index"
+              >
+              <label :for="'task-checkbox-' + index" class="visually-hidden">Отметить задачу как выполненную</label>
             </td>
-            <td>{{ task.dateTime }}</td>
+            <td>{{ formatDateTime(task.dateTime) }}</td>
             <td>{{ task.patient }}</td>
-            <td>{{ task.birthDate }}</td>
+            <td>{{ formatDate(task.birthDate) }}</td>
             <td>{{ task.room }}</td>
             <td>{{ task.measurements }}</td>
             <td>{{ task.medications }}</td>
@@ -79,7 +95,6 @@
         </tbody>
       </table>
     </div>
-    />
   </div>
 </template>
 
@@ -88,17 +103,24 @@ import { fetchStaffInfo } from '../request/staff.js';
 import { fetchTasks } from '../request/tasks.js';
 
 export default {
-
-  
   props: {
-    token: String,
-    organizationId: String,
-    departmentId: String
+    token: {
+      type: String,
+      required: true
+    },
+    organizationId: {
+      type: String,
+      required: true
+    },
+    departmentId: {
+      type: String,
+      required: true
+    }
   },
   
   data() {
     const today = new Date();
-    const dateStr = today.toLocaleDateString('ru-RU');
+    const dateStr = this.formatDate(today);
 
     return {
       organizationName: '',
@@ -108,29 +130,26 @@ export default {
       tasks: [],
       dateRange: `${dateStr} - ${dateStr}`,
       periodType: 'day',
-      activeFilters: {},
-
       calendarVisible: false,
       calendarRange: {
         start: today,
         end: today
-      }
+      },
+      isLoading: false,
+      error: null
     };
   },
 
   computed: {
     filteredTasks() {
       const [startStr, endStr] = this.dateRange.split(' - ');
-      const startTime = Date.parse(startStr);
-      const endTime = Date.parse(endStr);
+      const startDate = this.parseDate(startStr);
+      const endDate = this.parseDate(endStr);
 
       return this.tasks.filter(task => {
-        const taskTime = Date.parse(task.dateTime);
-        if (taskTime < startTime || taskTime > endTime) return false;
-
-        return Object.entries(this.activeFilters).every(([key, value]) =>
-          !value || String(task[key]).includes(String(value))
-        );
+        const taskDate = this.parseDate(task.dateTime);
+        if (taskDate < startDate || taskDate > endDate) return false;
+        return true;
       });
     }
   },
@@ -138,17 +157,69 @@ export default {
   watch: {
     calendarRange(val) {
       if (val?.start && val?.end) {
-        this.dateRange = `${val.start.toLocaleDateString('ru-RU')} - ${val.end.toLocaleDateString('ru-RU')}`;
+        if (this.periodType === 'day') {
+          this.dateRange = `${this.formatDate(val.start)} - ${this.formatDate(val.start)}`;
+        } else {
+          this.dateRange = `${this.formatDate(val.start)} - ${this.formatDate(val.end)}`;
+        }
+      }
+    },
+    periodType(newVal) {
+      if (newVal === 'day') {
+        const dateStr = this.formatDate(new Date());
+        this.dateRange = `${dateStr} - ${dateStr}`;
+      } else {
+        const today = new Date();
+        const startOfWeek = new Date(today);
+        startOfWeek.setDate(today.getDate() - today.getDay());
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+        
+        this.dateRange = `${this.formatDate(startOfWeek)} - ${this.formatDate(endOfWeek)}`;
       }
     }
   },
 
   async mounted() {
-    await this.loadStaffInfo();
-    await this.loadTasks();
+    await this.loadData();
   },
   
   methods: {
+    // Загрузка всех данных
+    async loadData() {
+      this.isLoading = true;
+      try {
+        await Promise.all([this.loadStaffInfo(), this.loadTasks()]);
+      } catch (error) {
+        console.error('Ошибка загрузки данных:', error);
+        this.error = 'Не удалось загрузить данные';
+      } finally {
+        this.isLoading = false;
+      }
+    },
+
+    // Форматирование даты
+    formatDate(date) {
+      if (!date) return '';
+      const d = new Date(date);
+      return d.toLocaleDateString('ru-RU');
+    },
+    
+    // Форматирование даты и времени
+    formatDateTime(datetime) {
+      if (!datetime) return '';
+      const d = new Date(datetime);
+      return d.toLocaleString('ru-RU');
+    },
+    
+    // Парсинг даты из строки
+    parseDate(dateStr) {
+      if (!dateStr) return new Date();
+      const [day, month, year] = dateStr.split('.');
+      return new Date(`${year}-${month}-${day}`);
+    },
+
+    // Загрузка информации о сотруднике
     async loadStaffInfo() {
       try {
         const staffInfo = await fetchStaffInfo(
@@ -156,27 +227,35 @@ export default {
           this.organizationId, 
           this.departmentId
         );
-        this.organizationName = staffInfo.organizationName;
-        this.departmentName = staffInfo.departmentName;
-        this.position = staffInfo.position;
-        this.staffName = `${staffInfo.surname} ${staffInfo.name} ${staffInfo.lastname}`;
+
+        if (staffInfo) {
+          this.organizationName = staffInfo.organizationName || 'Не указано';
+          this.departmentName = staffInfo.departmentName || 'Не указано';
+          this.position = staffInfo.position || 'Не указано';
+          this.staffName = `${staffInfo.surname || ''} ${staffInfo.name || ''} ${staffInfo.lastname || ''}`.trim();
+        }
       } catch (error) {
         console.error('Ошибка загрузки информации о сотруднике:', error);
+        throw error;
       }
     },
     
+    // Загрузка задач
     async loadTasks() {
       try {
-        this.tasks = await fetchTasks(
+        const tasks = await fetchTasks(
           this.token,
           this.organizationId,
           this.departmentId
-        ).map(task => ({ ...task, inactive: false }));
+        );
+        this.tasks = tasks.map(task => ({ ...task, inactive: false }));
       } catch (error) {
         console.error('Ошибка загрузки задач:', error);
+        throw error;
       }
     },
     
+    // Обработка отметки задачи
     onTaskCheck(task) {
       fetch('/api/update-task', {
         method: 'POST',
@@ -185,64 +264,49 @@ export default {
           'Authorization': `Bearer ${this.token}`
         },
         body: JSON.stringify({
-        taskId: task.id,
-        inactive: task.inactive
+          taskId: task.id,
+          inactive: task.inactive
         })
-      })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('Ошибка при обновлении задачи');
-        }
-          return response.json();
-      })
-      .then(data => {
-        console.log('Успешно обновлено:', data);
-      })
-      .catch(error => {
-        console.error('Ошибка при отправке:', error);
+      }).catch(error => {
+        console.error('Ошибка при обновлении задачи:', error);
+        task.inactive = !task.inactive; // Откат изменения
       });
     },
 
+    // Сдвиг периода
     shiftPeriod(direction) {
       const [startStr, endStr] = this.dateRange.split(' - ');
-      const startDate = new Date(Date.parse(startStr));
-      const endDate = new Date(Date.parse(endStr));
-      const diff = endDate - startDate;
+      let startDate = this.parseDate(startStr);
+      let endDate = this.parseDate(endStr);
+      
+      if (this.periodType === 'day') {
+        startDate.setDate(startDate.getDate() + direction);
+        endDate = new Date(startDate);
+      } else {
+        const diff = endDate - startDate;
+        startDate.setDate(startDate.getDate() + (direction * 7));
+        endDate = new Date(startDate.getTime() + diff);
+      }
 
-      startDate.setDate(startDate.getDate() + direction);
-      const newEndDate = new Date(startDate.getTime() + diff);
-
-      this.dateRange = `${startDate.toLocaleDateString('ru-RU')} - ${newEndDate.toLocaleDateString('ru-RU')}`;
-      this.calendarRange = { start: startDate, end: newEndDate };
+      this.dateRange = `${this.formatDate(startDate)} - ${this.formatDate(endDate)}`;
+      this.calendarRange = { start: startDate, end: endDate };
     },
     
+    // Установка типа периода
     setPeriodType(type) {
       this.periodType = type;
-      const today = new Date();
-
-      if (type === 'day') {
-        const dateStr = today.toLocaleDateString('ru-RU');
-        this.dateRange = `${dateStr} - ${dateStr}`;
-        this.calendarRange = { start: today, end: today };
-      } else if (type === 'week') {
-        const startOfWeek = new Date(today);
-        startOfWeek.setDate(today.getDate() - today.getDay());
-        const endOfWeek = new Date(startOfWeek);
-        endOfWeek.setDate(startOfWeek.getDate() + 6);
-
-        this.dateRange = `${startOfWeek.toLocaleDateString('ru-RU')} - ${endOfWeek.toLocaleDateString('ru-RU')}`;
-        this.calendarRange = { start: startOfWeek, end: endOfWeek };
-      }
     },
 
+    // Переключение календаря
     toggleCalendar() {
       this.calendarVisible = !this.calendarVisible;
-    },
+    }
   }
 };
 </script>
 
 <style scoped>
+/* Стили остаются такими же, как в вашем исходном коде */
 .main-dialog {
   display: flex;
   flex-direction: column;
@@ -264,13 +328,6 @@ export default {
 .title {
   font-size: 18px;
   font-weight: bold;
-}
-
-.menu-button {
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
 }
 
 .filters {
@@ -363,5 +420,16 @@ th {
 
 tr:nth-child(even) {
   background-color: #f9f9f9;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
 }
 </style>

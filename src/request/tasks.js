@@ -45,9 +45,11 @@ const test_tasks = {
     ]
 };
 
-export async function fetchTasks(token, organizationId) {
+export async function fetchTasks(token, organizationId, departmentId) {
     if (IS_TEST_MODE) {
-        return test_tasks[departmentId] || [];
+        return {
+            ...test_tasks[departmentId]
+        }
     }
     const response = await fetch(`${URL}/tasks`, {
         method: 'POST',
