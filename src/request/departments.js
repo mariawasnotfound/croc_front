@@ -31,11 +31,9 @@ export async function fetchDepartments(token, organizationId) {
     },
   });
 
-
   if (!response.ok) {
     throw new Error("Ошибка загрузки отделений");
   }
-
-
+  
   return await response.json();
 }

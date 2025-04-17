@@ -46,7 +46,10 @@ export default {
       }
     },
     select() {
-      alert(`Вы выбрали: ${this.selectedOrg} - ${this.selectedDept}`);
+      this.$emit("select-success", {
+        organizationId: this.selectedOrg,
+        departmentId: this.selectedDept
+      });
     },
   },
 };

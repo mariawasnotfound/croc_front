@@ -10,17 +10,25 @@
     <div class="filters">
       <div class="date-controls">
         <button class="arrow-button" @click="shiftPeriod(-1)">←</button>
-        
+
         <div class="date-input-container">
           <input 
             v-model="dateRange" 
             type="text" 
             placeholder="ДД.ММ.ГГ - ДД.ММ.ГГ"
             class="date-input"
+            readonly
           >
-          <button class="calendar-button" @click="showCalendar">📅</button>
+          <button class="calendar-button" @click="toggleCalendar">📅</button>
+
+          <v-date-picker
+            v-if="calendarVisible"
+            v-model="calendarRange"
+            is-range
+            :popover="{ visibility: 'click' }"
+          />
         </div>
-        
+
         <button class="arrow-button" @click="shiftPeriod(1)">→</button>
       </div>
 
@@ -37,21 +45,14 @@
         >
           Неделя
         </button>
-        <button 
-          :class="{ active: periodType === 'all' }" 
-          @click="setPeriodType('all')"
-        >
-          Всё
-        </button>
       </div>
-
-      <button class="filter-button" @click="showFilters">Фильтр</button>
     </div>
 
     <div class="journal">
       <table>
         <thead>
           <tr>
+            <th></th>
             <th>Дата и время задачи</th>
             <th>Пациент</th>
             <th>Дата рождения</th>
@@ -62,7 +63,11 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(task, index) in filteredTasks" :key="index">
+          <tr v-for="(task, index) in filteredTasks" :key="index" 
+          :class="{inactive: task.inactive}">
+            <td> 
+              <input type="checkbox" v-model="task.inactive" @change="onTaskCheck(task)">
+            </td>
             <td>{{ task.dateTime }}</td>
             <td>{{ task.patient }}</td>
             <td>{{ task.birthDate }}</td>
@@ -74,92 +79,70 @@
         </tbody>
       </table>
     </div>
-
-    <CalendarModal 
-      v-if="showCalendarModal" 
-      @close="hideCalendar"
-      @select="handleDateSelect"
-    />
-    
-    <FilterModal 
-      v-if="showFilterModal" 
-      @close="hideFilters"
-      @apply="applyFilters"
-    />
-    
-    <MainMenu 
-      v-if="showMainMenu" 
-      @close="toggleMenu"
     />
   </div>
 </template>
 
 <script>
-import { fetchStaffInfo } from '@/request/staff.js';
-import { fetchTasks } from '@/request/tasks.js';
-import CalendarModal from '@/components/CalendarModal.vue';
-import FilterModal from '@/components/FilterModal.vue';
-import MainMenu from '@/components/MainMenu.vue';
+import { fetchStaffInfo } from '../request/staff.js';
+import { fetchTasks } from '../request/tasks.js';
 
 export default {
-  components: {
-    CalendarModal,
-    FilterModal,
-    MainMenu
-  },
+
   
   props: {
-    token: {
-      type: String,
-      required: true
-    },
-    organizationId: {
-      type: String,
-      required: true
-    },
-    departmentId: {
-      type: String,
-      required: true
-    }
+    token: String,
+    organizationId: String,
+    departmentId: String
   },
   
   data() {
+    const today = new Date();
+    const dateStr = today.toLocaleDateString('ru-RU');
+
     return {
       organizationName: '',
       departmentName: '',
       position: '',
       staffName: '',
       tasks: [],
-      dateRange: this.getDefaultDateRange(),
+      dateRange: `${dateStr} - ${dateStr}`,
       periodType: 'day',
-      showCalendarModal: false,
-      showFilterModal: false,
-      showMainMenu: false,
-      activeFilters: {}
+      activeFilters: {},
+
+      calendarVisible: false,
+      calendarRange: {
+        start: today,
+        end: today
+      }
     };
   },
-  
+
   computed: {
     filteredTasks() {
+      const [startStr, endStr] = this.dateRange.split(' - ');
+      const startTime = Date.parse(startStr);
+      const endTime = Date.parse(endStr);
+
       return this.tasks.filter(task => {
-        const taskDate = new Date(task.dateTime);
-        const [startDate, endDate] = this.parseDateRange();
-        
-        if (taskDate < startDate || taskDate > endDate) {
-          return false;
-        }
-        
-        for (const key in this.activeFilters) {
-          if (task[key] !== this.activeFilters[key]) {
-            return false;
-          }
-        }
-        
-        return true;
+        const taskTime = Date.parse(task.dateTime);
+        if (taskTime < startTime || taskTime > endTime) return false;
+
+        return Object.entries(this.activeFilters).every(([key, value]) =>
+          !value || String(task[key]).includes(String(value))
+        );
       });
     }
   },
-  
+
+  watch: {
+    calendarRange(val) {
+      if (val?.start && val?.end) {
+        this.dateRange = `${val.start.toLocaleDateString('ru-RU')} - ${val.end.toLocaleDateString('ru-RU')}`;
+      }
+    }
+  },
+
   async mounted() {
     await this.loadStaffInfo();
     await this.loadTasks();
@@ -173,7 +156,6 @@ export default {
           this.organizationId, 
           this.departmentId
         );
-        
         this.organizationName = staffInfo.organizationName;
         this.departmentName = staffInfo.departmentName;
         this.position = staffInfo.position;
@@ -189,103 +171,73 @@ export default {
           this.token,
           this.organizationId,
           this.departmentId
-        );
+        ).map(task => ({ ...task, inactive: false }));
       } catch (error) {
         console.error('Ошибка загрузки задач:', error);
       }
     },
     
-    getDefaultDateRange() {
-      const today = new Date();
-      const formattedDate = this.formatDate(today);
-      return `${formattedDate} - ${formattedDate}`;
+    onTaskCheck(task) {
+      fetch('/api/update-task', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.token}`
+        },
+        body: JSON.stringify({
+        taskId: task.id,
+        inactive: task.inactive
+        })
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Ошибка при обновлении задачи');
+        }
+          return response.json();
+      })
+      .then(data => {
+        console.log('Успешно обновлено:', data);
+      })
+      .catch(error => {
+        console.error('Ошибка при отправке:', error);
+      });
     },
-    
-    formatDate(date) {
-      const day = String(date.getDate()).padStart(2, '0');
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const year = date.getFullYear();
-      return `${day}.${month}.${year}`;
-    },
-    
-    parseDateRange() {
-      const [startStr, endStr] = this.dateRange.split(' - ');
-      const startDate = this.parseDate(startStr);
-      const endDate = this.parseDate(endStr);
-      return [startDate, endDate];
-    },
-    
-    parseDate(dateStr) {
-      const [day, month, year] = dateStr.split('.');
-      return new Date(year, month - 1, day);
-    },
-    
+
     shiftPeriod(direction) {
-      const [startDate, endDate] = this.parseDateRange();
+      const [startStr, endStr] = this.dateRange.split(' - ');
+      const startDate = new Date(Date.parse(startStr));
+      const endDate = new Date(Date.parse(endStr));
       const diff = endDate - startDate;
-      
-      const newStartDate = new Date(startDate);
-      newStartDate.setDate(newStartDate.getDate() + direction);
-      
-      const newEndDate = new Date(newStartDate);
-      newEndDate.setDate(newEndDate.getDate() + diff / (1000 * 60 * 60 * 24));
-      
-      this.dateRange = `${this.formatDate(newStartDate)} - ${this.formatDate(newEndDate)}`;
+
+      startDate.setDate(startDate.getDate() + direction);
+      const newEndDate = new Date(startDate.getTime() + diff);
+
+      this.dateRange = `${startDate.toLocaleDateString('ru-RU')} - ${newEndDate.toLocaleDateString('ru-RU')}`;
+      this.calendarRange = { start: startDate, end: newEndDate };
     },
     
     setPeriodType(type) {
       this.periodType = type;
       const today = new Date();
-      
+
       if (type === 'day') {
-        this.dateRange = `${this.formatDate(today)} - ${this.formatDate(today)}`;
+        const dateStr = today.toLocaleDateString('ru-RU');
+        this.dateRange = `${dateStr} - ${dateStr}`;
+        this.calendarRange = { start: today, end: today };
       } else if (type === 'week') {
         const startOfWeek = new Date(today);
         startOfWeek.setDate(today.getDate() - today.getDay());
-        
         const endOfWeek = new Date(startOfWeek);
         endOfWeek.setDate(startOfWeek.getDate() + 6);
-        
-        this.dateRange = `${this.formatDate(startOfWeek)} - ${this.formatDate(endOfWeek)}`;
-      } else {
-        if (this.tasks.length > 0) {
-          const dates = this.tasks.map(t => new Date(t.dateTime));
-          const minDate = new Date(Math.min(...dates));
-          const maxDate = new Date(Math.max(...dates));
-          this.dateRange = `${this.formatDate(minDate)} - ${this.formatDate(maxDate)}`;
-        }
+
+        this.dateRange = `${startOfWeek.toLocaleDateString('ru-RU')} - ${endOfWeek.toLocaleDateString('ru-RU')}`;
+        this.calendarRange = { start: startOfWeek, end: endOfWeek };
       }
     },
-    
-    showCalendar() {
-      this.showCalendarModal = true;
+
+    toggleCalendar() {
+      this.calendarVisible = !this.calendarVisible;
     },
-    
-    hideCalendar() {
-      this.showCalendarModal = false;
-    },
-    
-    handleDateSelect(startDate, endDate) {
-      this.dateRange = `${this.formatDate(startDate)} - ${this.formatDate(endDate)}`;
-      this.hideCalendar();
-    },
-    
-    showFilters() {
-      this.showFilterModal = true;
-    },
-    
-    hideFilters() {
-      this.showFilterModal = false;
-    },
-    
-    applyFilters(filters) {
-      this.activeFilters = filters;
-      this.hideFilters();
-    },
-    
-    toggleMenu() {
-      this.showMainMenu = !this.showMainMenu;
-    }
   }
 };
 </script>
@@ -383,16 +335,13 @@ export default {
   border-color: #007bff;
 }
 
-.filter-button {
-  padding: 5px 15px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  background: white;
-  cursor: pointer;
-}
-
 .journal {
   overflow-x: auto;
+}
+
+.inactive {
+  color: gray;
+  text-decoration: line-through;
 }
 
 table {
