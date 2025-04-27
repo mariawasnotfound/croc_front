@@ -3,9 +3,7 @@
     <Login v-if="!isLogged" @login-success="handleLogin" />
     <div v-else>
       <button @click="handleLogout" class="logout-button">Выйти</button>
-      <Select
-        v-if="!organizationId || !departmentId" @select-success="handleSelect"
-      />
+      <Select v-if="!organizationId || !departmentId" @select-success="handleSelect" />
       <MainDialog
         v-else
         :organization-id="organizationId"
