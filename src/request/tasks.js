@@ -45,19 +45,17 @@ const test_tasks = {
     ]
 };
 
-export async function fetchTasks(token, organizationId, departmentId) {
+export async function fetchTasks(organizationId, departmentId) {
     if (IS_TEST_MODE) {
-        return {
-            ...test_tasks[departmentId]
-        }
+        return test_tasks[departmentId] || [];
     }
     const response = await fetch(`${URL}/tasks`, {
         method: 'POST',
         headers: {
-            "Content-type": 'application/json',
-            Authorization: `Bearer ${token}`
+            "Content-type": 'application/json'
         },
-        body: JSON.stringify({ organizationId, departmentId }) // возвращаем задачи по organizationId, departmentId
+        body: JSON.stringify({ organizationId, departmentId }),
+        credentials: "include"
     });
 
     if (!response.ok) {

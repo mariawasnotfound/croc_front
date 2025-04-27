@@ -104,10 +104,6 @@ import { fetchTasks } from '../request/tasks.js';
 
 export default {
   props: {
-    token: {
-      type: String,
-      required: true
-    },
     organizationId: {
       type: String,
       required: true
@@ -216,17 +212,13 @@ export default {
     parseDate(dateStr) {
       if (!dateStr) return new Date();
       const [day, month, year] = dateStr.split('.');
-      return new Date(`${year}-${month}-${day}`);
+      return new Date(`${year}-${month}-${day}T00:00:00`);
     },
 
     // Загрузка информации о сотруднике
     async loadStaffInfo() {
       try {
-        const staffInfo = await fetchStaffInfo(
-          this.token, 
-          this.organizationId, 
-          this.departmentId
-        );
+        const staffInfo = await fetchStaffInfo(this.organizationId, this.departmentId);
 
         if (staffInfo) {
           this.organizationName = staffInfo.organizationName || 'Не указано';
@@ -244,7 +236,6 @@ export default {
     async loadTasks() {
       try {
         const tasks = await fetchTasks(
-          this.token,
           this.organizationId,
           this.departmentId
         );
@@ -266,7 +257,8 @@ export default {
         body: JSON.stringify({
           taskId: task.id,
           inactive: task.inactive
-        })
+        }),
+        credentials: "include"
       }).catch(error => {
         console.error('Ошибка при обновлении задачи:', error);
         task.inactive = !task.inactive; // Откат изменения

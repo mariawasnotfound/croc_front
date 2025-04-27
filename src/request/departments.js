@@ -1,8 +1,6 @@
 import URL from "./url.js";
 const IS_TEST_MODE = true;
 
-
-// Список тестовых отделений
 const departments = {
   1: [
     { id: 1, name: "Отделение №1" },
@@ -18,17 +16,14 @@ const departments = {
   ],
 };
 
-
-export async function fetchDepartments(token, organizationId) {
+export async function fetchDepartments(organizationId) {
   if (IS_TEST_MODE) {
     return departments[organizationId] || [];
   }
 
   const response = await fetch(`${URL}/organizations/${organizationId}/departments`, {
     method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    credentials: "include"
   });
 
   if (!response.ok) {

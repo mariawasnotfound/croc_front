@@ -19,8 +19,8 @@ export default {
   methods: {
     async handleLogin() {
       try {
-        const token = await login(this.username, this.password);
-        this.$emit("login-success", token);
+        await login(this.username, this.password);
+        this.$emit("login-success");
       } catch (error) {
         alert(error.message);
       }

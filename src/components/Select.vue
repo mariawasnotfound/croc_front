@@ -19,7 +19,6 @@ import { fetchOrganizations } from "../request/organizations.js";
 import { fetchDepartments } from "../request/departments.js";
 
 export default {
-  props: ["token"],
   data() {
     return {
       organizations: [],
@@ -30,8 +29,7 @@ export default {
   },
   async created() {
     try {
-      // Загрузка медорганизаций, если токен есть
-      this.organizations = await fetchOrganizations(this.token);
+      this.organizations = await fetchOrganizations();
     } catch (error) {
       alert(error.message);
     }
@@ -40,7 +38,7 @@ export default {
     async loadDepartments() {
       if (!this.selectedOrg) return;
       try {
-        this.departments = await fetchDepartments(this.token, this.selectedOrg);
+        this.departments = await fetchDepartments(this.selectedOrg);
       } catch (error) {
         alert(error.message);
       }
