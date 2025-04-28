@@ -1,8 +1,10 @@
 <template>
-  <div class="login-container">
-    <input v-model="username" type="text" placeholder="Логин" />
-    <input v-model="password" type="password" placeholder="Пароль" />
-    <button @click="handleLogin" :disabled="!username || !password">Войти</button>
+  <div class="container">
+    <div class="login-container">
+      <input v-model="username" type="text" placeholder="Логин" />
+      <input v-model="password" type="password" placeholder="Пароль" />
+      <button @click="handleLogin" :disabled="!username || !password">Войти</button>
+    </div>
   </div>
 </template>
 
@@ -30,6 +32,13 @@ export default {
 </script>
 
 <style scoped>
+.container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 90vh;
+}
+
 .login-container {
   display: flex;
   flex-direction: column;
@@ -37,14 +46,12 @@ export default {
   gap: 20px;
   padding: 40px;
   width: 400px;
-  height: 200px;
-  margin: auto;
   background: lightblue;
   border-radius: 12px;
   border: 2px solid #000;
 }
 
-input, select, button {
+input, button {
   padding: 12px;
   font-size: 18px;
   width: 100%;

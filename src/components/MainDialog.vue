@@ -261,7 +261,8 @@ export default {
       fetch('/api/update-task', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.token}`
         },
         body: JSON.stringify({
           taskId: task.id,

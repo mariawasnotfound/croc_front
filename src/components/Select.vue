@@ -1,16 +1,18 @@
 <template>
-  <div class="select-container">
-    <select v-model="selectedOrg" @change="loadDepartments">
-      <option disabled value="">Выберите мед. организацию</option>
-      <option v-for="org in organizations" :key="org.id" :value="org.id">{{ org.name }}</option>
-    </select>
+  <div class="container">
+    <div class="select-container">
+      <select v-model="selectedOrg" @change="loadDepartments">
+        <option disabled value="">Выберите мед. организацию</option>
+        <option v-for="org in organizations" :key="org.id" :value="org.id">{{ org.name }}</option>
+      </select>
 
-    <select v-model="selectedDept" :disabled="!selectedOrg">
-      <option disabled value="">Выберите отделение</option>
-      <option v-for="dept in departments" :key="dept.id" :value="dept.id">{{ dept.name }}</option>
-    </select>
+      <select v-model="selectedDept" :disabled="!selectedOrg">
+        <option disabled value="">Выберите отделение</option>
+        <option v-for="dept in departments" :key="dept.id" :value="dept.id">{{ dept.name }}</option>
+      </select>
 
-    <button :disabled="!selectedDept" @click="select">Выбрать</button>
+      <button :disabled="!selectedDept" @click="select">Выбрать</button>
+    </div>
   </div>
 </template>
 
@@ -54,6 +56,13 @@ export default {
 </script>
 
 <style scoped>
+.container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 90vh;
+}
+
 .select-container {
   display: flex;
   flex-direction: column;
