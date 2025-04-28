@@ -2,14 +2,14 @@ import URL from "./url.js";
 const IS_TEST_MODE = true;
 
 const users = [
-  { username: "user1", password: "123" },
-  { username: "user2", password: "123" },
-  { username: "admin", password: "admin" },
+  { login: "user1", password: "123" },
+  { login: "user2", password: "123" },
+  { login: "admin", password: "admin" },
 ];
 
-export async function login(username, password) {
+export async function login(login, password) {
   if (IS_TEST_MODE) {
-    const user = users.find((u) => u.username === username && u.password === password);
+    const user = users.find((u) => u.login === login && u.password === password);
     if (!user) {
       throw new Error("Ошибка авторизации: неверный логин или пароль");
     }
@@ -21,7 +21,7 @@ export async function login(username, password) {
     headers: {
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ login, password }),
     credentials: "include"
   });
 
