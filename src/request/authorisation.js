@@ -7,9 +7,9 @@ const users = [
   { login: "admin", password: "admin" },
 ];
 
-export async function login(login, password) {
+export async function login(username, password) {
   if (IS_TEST_MODE) {
-    const user = users.find((u) => u.login === login && u.password === password);
+    const user = users.find((u) => u.login === username && u.password === password);
     if (!user) {
       throw new Error("Ошибка авторизации: неверный логин или пароль");
     }
@@ -21,7 +21,7 @@ export async function login(login, password) {
     headers: {
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({ login, password }),
+    body: JSON.stringify({ login: username, password }),
     credentials: "include"
   });
 
