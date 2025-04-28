@@ -29,8 +29,9 @@
             v-model="calendarRange"
             is-range
             :mode="periodType === 'day' ? 'single' : 'range'"
-            :popover="{ visibility: 'click' }"
             @clickOutside="calendarVisible = false"
+            :popover="{ visibility: 'click', placement: 'bottom' }"
+            :masks="{ input: 'DD.MM.YYYY' }"
           />
         </div>
 
@@ -101,6 +102,7 @@
 <script>
 import { fetchStaffInfo } from '../request/staff.js';
 import { fetchTasks } from '../request/tasks.js';
+import { DatePicker } from 'v-calendar';
 
 export default {
   props: {
@@ -127,9 +129,10 @@ export default {
       dateRange: `${dateStr} - ${dateStr}`,
       periodType: 'day',
       calendarVisible: false,
+      'v-date-picker': DatePicker,
       calendarRange: {
-        start: today,
-        end: today
+        start: new Date(),
+        end: new Date()
       },
       isLoading: false,
       error: null
@@ -139,13 +142,15 @@ export default {
   computed: {
     filteredTasks() {
       const [startStr, endStr] = this.dateRange.split(' - ');
-      const startDate = this.parseDate(startStr);
-      const endDate = this.parseDate(endStr);
+      // Парсим даты с помощью встроенного new Date()
+      // Учтите, что формат должен быть совместим с Date.parse()
+      const startDate = new Date(startStr.split('.').reverse().join('-'));
+      const endDate = new Date(endStr.split('.').reverse().join('-'));
+      endDate.setHours(23, 59, 59); // Учитываем весь конечный день
 
       return this.tasks.filter(task => {
-        const taskDate = this.parseDate(task.dateTime);
-        if (taskDate < startDate || taskDate > endDate) return false;
-        return true;
+        const taskDate = new Date(task.dateTime);
+        return taskDate >= startDate && taskDate <= endDate;
       });
     }
   },
@@ -159,6 +164,7 @@ export default {
           this.dateRange = `${this.formatDate(val.start)} - ${this.formatDate(val.end)}`;
         }
       }
+      this.calendarVisible = false;
     },
     periodType(newVal) {
       if (newVal === 'day') {
@@ -205,7 +211,11 @@ export default {
     formatDateTime(datetime) {
       if (!datetime) return '';
       const d = new Date(datetime);
-      return d.toLocaleString('ru-RU');
+      return d.toLocaleDateString('ru-RU', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
     },
     
     // Парсинг даты из строки
@@ -251,8 +261,7 @@ export default {
       fetch('/api/update-task', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           taskId: task.id,
@@ -268,9 +277,9 @@ export default {
     // Сдвиг периода
     shiftPeriod(direction) {
       const [startStr, endStr] = this.dateRange.split(' - ');
-      let startDate = this.parseDate(startStr);
-      let endDate = this.parseDate(endStr);
-      
+      let startDate = new Date(startStr.split('.').reverse().join('-'));
+      let endDate = new Date(endStr.split('.').reverse().join('-'));
+
       if (this.periodType === 'day') {
         startDate.setDate(startDate.getDate() + direction);
         endDate = new Date(startDate);
@@ -298,7 +307,7 @@ export default {
 </script>
 
 <style scoped>
-/* Стили остаются такими же, как в вашем исходном коде */
+
 .main-dialog {
   display: flex;
   flex-direction: column;
@@ -356,6 +365,18 @@ export default {
   background: none;
   border: none;
   cursor: pointer;
+}
+
+.v-date-picker {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1000;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  margin-top: 5px;
 }
 
 .arrow-button {
