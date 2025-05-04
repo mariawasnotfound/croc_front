@@ -1,7 +1,7 @@
 import URL from "./url.js";
 
 export async function logout() {
-  const response = await fetch(`${URL}/logout`, {
+  const response = await fetch(`${URL}/user/logout`, {
     method: "POST",
     credentials: "include",
   });
