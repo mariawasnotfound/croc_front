@@ -17,8 +17,8 @@
 </template>
 
 <script>
-import { fetchOrganizations } from "../request/organizations.js";
-import { fetchDepartments } from "../request/departments.js";
+import { getOrganizationsOfStaff } from "../request/organizations.js";
+import { getDepartmentsOfStaff } from "../request/departments.js";
 
 export default {
   data() {
@@ -26,24 +26,28 @@ export default {
       organizations: [],
       departments: [],
       selectedOrg: "",
-      selectedDept: "",
+      selectedDept: ""
     };
+  },
+  computed: {
+    filteredDepartments() {
+      if (!this.selectedOrg) return [];
+      return this.allDepartments.filter(dept => dept.organization_id === this.selectedOrg);
+    }
   },
   async created() {
     try {
-      this.organizations = await fetchOrganizations();
+      [this.organizations, this.allDepartments] = await Promise.all([
+        getOrganizationsOfStaff(),
+        getDepartmentsOfStaff()
+      ]);
     } catch (error) {
       alert(error.message);
     }
   },
   methods: {
     async loadDepartments() {
-      if (!this.selectedOrg) return;
-      try {
-        this.departments = await fetchDepartments(this.selectedOrg);
-      } catch (error) {
-        alert(error.message);
-      }
+      this.selectedDept = "";
     },
     select() {
       this.$emit("select-success", {
@@ -53,6 +57,7 @@ export default {
     },
   },
 };
+
 </script>
 
 <style scoped>
@@ -70,16 +75,27 @@ export default {
   gap: 20px;
   padding: 40px;
   width: 400px;
-  height: 200px;
-  margin: auto;
   background: lightblue;
   border-radius: 12px;
   border: 2px solid #000;
+  position: relative;
 }
 
-input, select, button {
+select, button {
   padding: 12px;
   font-size: 18px;
   width: 100%;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.loading-text {
+  color: #555;
+  font-style: italic;
+  position: absolute;
+  bottom: 10px;
 }
 </style>

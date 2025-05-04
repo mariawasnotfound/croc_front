@@ -61,13 +61,13 @@
         <thead>
           <tr>
             <th></th>
-            <th>Дата и время задачи</th>
+            <th>Время выполнения</th>
+            <th>Задача выполнена</th>
             <th>Пациент</th>
             <th>Дата рождения</th>
             <th>Палата</th>
             <th>Измерения</th>
             <th>Лек. препараты</th>
-            <th>Диета</th>
           </tr>
         </thead>
         <tbody>
@@ -85,13 +85,13 @@
               >
               <label :for="'task-checkbox-' + index" class="visually-hidden">Отметить задачу как выполненную</label>
             </td>
+            <!-- !!!!!!!!!!!!!!!!!! ЕЩЕ ОДИН СТОЛБИК НАДО !!!!!!!!!!!!! -->
             <td>{{ formatDateTime(task.dateTime) }}</td>
             <td>{{ task.patient }}</td>
             <td>{{ formatDate(task.birthDate) }}</td>
             <td>{{ task.room }}</td>
             <td>{{ task.measurements }}</td>
             <td>{{ task.medications }}</td>
-            <td>{{ task.diet }}</td>
           </tr>
         </tbody>
       </table>
@@ -101,7 +101,7 @@
 
 <script>
 import { fetchStaffInfo } from '../request/staff.js';
-import { fetchTasks } from '../request/tasks.js';
+import { getInPeriod } from '../request/tasks.js';
 import { DatePicker } from 'v-calendar';
 
 export default {
@@ -244,18 +244,14 @@ export default {
     
     // Загрузка задач
     async loadTasks() {
-      try {
-        const tasks = await fetchTasks(
-          this.organizationId,
-          this.departmentId
-        );
-        this.tasks = tasks.map(task => ({ ...task, inactive: false }));
-      } catch (error) {
-        console.error('Ошибка загрузки задач:', error);
-        throw error;
-      }
+    const [startStr, endStr] = this.dateRange.split(' - ');
+    const date_from = new Date(startStr.split('.').reverse().join('-')).toISOString();
+    const date_to = new Date(endStr.split('.').reverse().join('-')).toISOString();
+  
+    const tasks = await getInPeriod(date_from, date_to);
+    this.tasks = tasks.filter(task => task.departmentId === this.departmentId);
     },
-    
+
     // Обработка отметки задачи
     onTaskCheck(task) {
       fetch('/api/update-task', {
