@@ -74,7 +74,6 @@ export default {
           departmentId: this.selectedDept
         });
 
-        // После успешного сохранения переходим к главному окну
         this.$emit("select-success", {
           organizationId: String(this.selectedOrg),
           departmentId: String(this.selectedDept)
@@ -83,8 +82,6 @@ export default {
       } catch (error) {
         console.error("Ошибка:", error);
         this.error = error.message || "Ошибка сервера";
-        // Можно добавить более информативное сообщение для пользователя
-        alert("Не удалось сохранить выбор. Пожалуйста, попробуйте снова.");
       } finally {
         this.isLoading = false;
       }

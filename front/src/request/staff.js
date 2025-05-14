@@ -8,7 +8,6 @@ export async function getHeader() {
     });
 
     if (!response.ok) {
-      // Получаем текст ошибки от сервера, если есть
       const errorText = await response.text();
       throw new Error(errorText || "Ошибка загрузки данных о сотруднике");
     }
@@ -24,6 +23,6 @@ export async function getHeader() {
     
   } catch (error) {
     console.error('Ошибка в getStaffInfo:', error);
-    throw error; // Перебрасываем ошибку для обработки в компоненте
+    throw error;
   }
 }
