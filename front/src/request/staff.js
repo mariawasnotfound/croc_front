@@ -12,13 +12,16 @@ export async function getHeader() {
       throw new Error(errorText || "Ошибка загрузки данных о сотруднике");
     }
 
-    const staffData = await response.json();
+    const data = await response.json();
+    const staffData = data.header[0];
+    
+    const [surname, name, lastname] = staffData.staffFullName.split(' ');
     
     return {
-      name: `${staffData.surname || ''} ${staffData.name || ''} ${staffData.patronymic || ''}`.trim(),
+      name: `${surname || ''} ${name || ''} ${lastname || ''}`.trim(),
       position: staffData.position || 'Должность не указана',
-      organizationName: staffData.organizationName || 'Организация не указана',
-      departmentName: staffData.departmentName || 'Отделение не указано'
+      organizationName: staffData.organization || 'Организация не указана',
+      departmentName: staffData.department || 'Отделение не указано'
     };
     
   } catch (error) {

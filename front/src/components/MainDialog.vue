@@ -137,7 +137,6 @@ export default {
       error: null
     };
   },
-  
 
   computed: {
     filteredTasks() {
@@ -154,15 +153,18 @@ export default {
   },
 
   watch: {
-    calendarRange(val) {
-      if (val?.start && val?.end) {
-        if (this.periodType === 'day') {
-          this.dateRange = `${this.formatDate(val.start)} - ${this.formatDate(val.start)}`;
-        } else {
-          this.dateRange = `${this.formatDate(val.start)} - ${this.formatDate(val.end)}`;
+    calendarRange: {
+      handler(newVal) {
+        if (newVal?.start && newVal?.end) {
+          if (this.periodType === 'day') {
+            this.dateRange = `${this.formatDate(newVal.start)} - ${this.formatDate(newVal.start)}`;
+          } else {
+            this.dateRange = `${this.formatDate(newVal.start)} - ${this.formatDate(newVal.end)}`;
+          }
+          this.loadTasks();
         }
-      }
-      this.calendarVisible = false;
+      },
+      deep: true
     },
     periodType(newVal) {
       if (newVal === 'day') {
@@ -248,14 +250,33 @@ export default {
     
     // Загрузка задач
     async loadTasks() {
-      const [startStr, endStr] = this.dateRange.split(' - ');
-      const date_from = new Date(startStr.split('.').reverse().join('-')).toISOString();
-      const date_to = new Date(endStr.split('.').reverse().join('-')).toISOString();
+      // Очищаем предыдущий таймер
+      if (this.debounceLoadTasks) {
+        clearTimeout(this.debounceLoadTasks);
+      }
       
-      const tasks = await getInPeriod(date_from, date_to);
-      this.tasks = tasks.filter(task => task.departmentId === this.departmentId);
+      // Устанавливаем новый таймер
+      this.debounceLoadTasks = setTimeout(async () => {
+        const [startStr, endStr] = this.dateRange.split(' - ');
+        try {
+          const [startStr, endStr] = this.dateRange.split(' - ');
+          const toISODate = (dateStr) => {
+            const [day, month, year] = dateStr.split('.');
+            return `${year}-${month}-${day}`;
+          };
+          
+          const response = await getInPeriod(toISODate(startStr), toISODate(endStr));
+
+          const tasks = Array.isArray(response?.tasks) ? response.tasks.flat() : [];
+          
+          this.tasks = tasks.filter(task => task.departmentId === this.departmentId);
+        } catch (error) {
+          console.error('Ошибка загрузки задач:', error);
+          this.tasks = [];
+          this.error = 'Не удалось загрузить задачи';
+        }
+      }, 300);
     },
-    
 
     // Обработка отметки задачи
     onTaskCheck(task) {
