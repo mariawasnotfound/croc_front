@@ -9,8 +9,8 @@ export async function getInPeriod(dateFrom, dateTo) {
         return date.toISOString().split('T')[0];
     };
 
-    url.searchParams.append('date_from', formatDate(dateFrom));
-    url.searchParams.append('date_to', formatDate(dateTo))
+    url.searchParams.append('dateFrom', formatDate(dateFrom));
+    url.searchParams.append('dateTo', formatDate(dateTo))
 
     const response = await fetch(url.toString(), {
         method: 'GET',

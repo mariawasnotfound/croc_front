@@ -29,7 +29,6 @@ export default {
   data() {
     return {
       organizations: [],
-      allDepartments: [],
       departments: [],
       selectedOrg: "",
       selectedDept: "",
@@ -37,50 +36,57 @@ export default {
       error: null
     };
   },
-  computed: {
-    filteredDepartments() {
-      if (!this.selectedOrg) return [];
-      return this.allDepartments.filter(dept => dept.pid === this.selectedOrg);
-    }
-  },
   async created() {
     try {
-      const [orgsResponse, deptsResponse] = await Promise.all([
-        getOrganizationsOfStaff(),
-        getDepartmentsOfStaff()
-      ]);
-      
+      this.isLoading = true;
+      const orgsResponse = await getOrganizationsOfStaff();
       this.organizations = orgsResponse.organizations || [];
-      this.allDepartments = deptsResponse.departments || [];
-      this.departments = this.filteredDepartments;
-      
     } catch (error) {
-      console.error("Error loading data:", error);
-      alert(error.message);
+      console.error("Error loading organizations:", error);
+      this.error = error.message;
+    } finally {
+      this.isLoading = false;
     }
   },
   methods: {
-    loadDepartments() {
+    async loadDepartments() {
+      if (!this.selectedOrg) return;
+      
       this.selectedDept = "";
-      this.departments = this.filteredDepartments;
+      this.isLoading = true;
+      this.error = null;
+      
+      try {
+        const response = await getDepartmentsOfStaff(this.selectedOrg);
+        this.departments = response.departments || [];
+        
+        if (this.departments.length === 0) {
+          this.error = "Нет доступных отделений для выбранной организации";
+        }
+      } catch (error) {
+        console.error("Ошибка загрузки отделений:", error);
+        this.error = error.message;
+        this.departments = [];
+      } finally {
+        this.isLoading = false;
+      }
     },
     async select() {
       try {
-        this.error = null;
         this.isLoading = true;
-
+        this.error = null;
+        
         await saveUserInfo({
           organizationId: this.selectedOrg,
           departmentId: this.selectedDept
         });
 
         this.$emit("select-success", {
-          organizationId: String(this.selectedOrg),
-          departmentId: String(this.selectedDept)
+          organizationId: this.selectedOrg,
+          departmentId: this.selectedDept
         });
-
       } catch (error) {
-        console.error("Ошибка:", error);
+        console.error("Ошибка сохранения:", error);
         this.error = error.message || "Ошибка сервера";
       } finally {
         this.isLoading = false;

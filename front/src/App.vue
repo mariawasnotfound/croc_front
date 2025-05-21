@@ -1,14 +1,28 @@
 <template>
-  <div>
+  <div class="app-container">
     <Login v-if="!isLogged" @login-success="handleLogin" />
     <div v-else>
-      <button @click="handleLogout" class="logout-button">Выйти</button>
-      <Select v-if="showSelect" @select-success="handleSelect" />
-      <MainDialog
-        v-else
-        :organization-id="organizationId"
-        :department-id="departmentId"
-      />
+      <div class="header-container">
+        <button @click="handleLogout" class="logout-button">Выйти</button>
+      </div>
+      
+      <div class="content-container">
+        <Select v-if="showSelect" @select-success="handleSelect" />
+        <template v-else>
+          <Menu 
+            v-if="showMenu"
+            :staff-info="staffInfo"
+            @close-menu="showMenu = false"
+          />
+          <MainDialog
+            v-show="!showMenu"
+            :organization-id="organizationId"
+            :department-id="departmentId"
+            @open-menu="showMenu = true"
+            @staff-info-updated="updateStaffInfo"
+          />
+        </template>
+      </div>
     </div>
   </div>
 </template>
@@ -17,16 +31,23 @@
 import Login from "./components/Login.vue";
 import Select from "./components/Select.vue";
 import MainDialog from "./components/MainDialog.vue";
+import Menu from "./components/Menu.vue";
 import { logout } from "./request/logout.js";
 
 export default {
-  components: { Login: Login, Select: Select, MainDialog },
+  components: { Login, Select, MainDialog, Menu },
   data() {
     return {
       isLogged: false,
       organizationId: null,
       departmentId: null,
-      showSelect: true
+      showSelect: true,
+      showMenu: false,
+      staffInfo: {
+        fullName: "",
+        organization: "",
+        department: ""
+      }
     };
   },
   methods: {
@@ -44,25 +65,55 @@ export default {
         this.isLogged = false;
         this.organizationId = null;
         this.departmentId = null;
+        this.showSelect = true;
+        this.showMenu = false;
       } catch (error) {
         alert(error.message);
       }
+    },
+    updateStaffInfo(info) {
+      this.staffInfo = {
+        fullName: info.staffName,
+        organization: info.organizationName,
+        department: info.departmentName
+      };
     }
-  },
+  }
 };
 </script>
 
 <style scoped>
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.header-container {
+  display: flex;
+  justify-content: flex-end;
+  background-color: #f5f5f5;
+  padding: 10px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  z-index: 100;
+}
+
+.content-container {
+  flex: 1;
+  padding: 20px;
+  position: relative;
+}
+
 .logout-button {
-  margin-left: auto;
-  display: block;
   padding: 10px 20px;
   font-size: 18px;
   background: #ff6666;
   border: none;
   border-radius: 8px;
   cursor: pointer;
+  transition: background-color 0.3s;
 }
+
 .logout-button:hover {
   background: #ff3333;
 }
