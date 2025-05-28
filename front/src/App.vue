@@ -38,10 +38,10 @@ export default {
   components: { Login, Select, MainDialog, Menu },
   data() {
     return {
-      isLogged: false,
-      organizationId: null,
-      departmentId: null,
-      showSelect: true,
+      isLogged: localStorage.getItem('isLogged') === 'true' || false,
+      organizationId: localStorage.getItem('organizationId') || null,
+      departmentId: localStorage.getItem('departmentId') || null,
+      showSelect: !localStorage.getItem('organizationId') || !localStorage.getItem('departmentId'),
       showMenu: false,
       staffInfo: {
         fullName: "",
@@ -53,11 +53,15 @@ export default {
   methods: {
     handleLogin() {
       this.isLogged = true;
+      localStorage.setItem('isLogged', 'true');
     },
     handleSelect({ organizationId, departmentId }) {
       this.organizationId = organizationId;
       this.departmentId = departmentId;
       this.showSelect = false;
+      
+      localStorage.setItem('organizationId', organizationId);
+      localStorage.setItem('departmentId', departmentId);
     },
     async handleLogout() {
       try {
@@ -67,6 +71,10 @@ export default {
         this.departmentId = null;
         this.showSelect = true;
         this.showMenu = false;
+        
+        localStorage.removeItem('isLogged');
+        localStorage.removeItem('organizationId');
+        localStorage.removeItem('departmentId');
       } catch (error) {
         alert(error.message);
       }

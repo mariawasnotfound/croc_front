@@ -405,9 +405,16 @@ export default {
           doctorFullName: `${taskDetails.doctorSurname} ${taskDetails.doctorFirstname} ${taskDetails.doctorLastname}`,
           diagnosis: taskDetails.diagnosis,
           allergy: taskDetails.allergy || 'Нет данных',
-          bloodPressure: isMeasureTask ? (taskDetails.result?.bloodPressure || 'Не измерялось') : 'Не измерялось',
-          respiratoryRate: isMeasureTask ? (taskDetails.result?.respiratoryRate || 'Не измерялось') : 'Не измерялось',
-          heartRate: isMeasureTask ? (taskDetails.result?.heartRate || 'Не измерялось') : 'Не измерялось',
+          // Преобразуем значения для отображения
+          bloodPressure: isMeasureTask 
+            ? (taskDetails.result?.bloodPressure ? taskDetails.result.bloodPressure.toString() : 'Не измерялось') 
+            : 'Не измерялось',
+          respiratoryRate: isMeasureTask 
+            ? (taskDetails.result?.respiratoryRate ? taskDetails.result.respiratoryRate.toString() : 'Не измерялось') 
+            : 'Не измерялось',
+          heartRate: isMeasureTask 
+            ? (taskDetails.result?.heartRate ? taskDetails.result.heartRate.toString() : 'Не измерялось') 
+            : 'Не измерялось',
           tasks: [
             {
               description: isMeasureTask ? taskDetails.taskName : taskDetails.taskName,
@@ -502,28 +509,34 @@ export default {
       try {
         this.isLoading = true;
         if (!this.selectedTask || !this.selectedPatient) return;
+        
         const prepareValue = (value) => {
-          if (value === 'Не измерялось' || value === null || value === undefined) {
+          if (value === 'Не измерялось' || value === null || value === undefined || value === '') {
             return null;
           }
           const num = Number(value);
           return isNaN(num) ? null : num;
         };
 
-        await updateMeasureTask(this.selectedTask.id, {
+        const resultData = {
           completedAt: this.selectedTask.completedAt || new Date().toISOString(),
           result: {
             bloodPressure: prepareValue(this.selectedPatient.bloodPressure),
             respiratoryRate: prepareValue(this.selectedPatient.respiratoryRate),
             heartRate: prepareValue(this.selectedPatient.heartRate)
           }
-        });
+        };
+
+        const result = await updateMeasureTask(this.selectedTask.id, resultData);
+
+        // Обновляем локальное состояние
         this.selectedTask.completedAt = this.selectedTask.completedAt || new Date().toISOString();
         this.selectedTask.inactive = true;
-        const taskIndex = this.tasks.findIndex(t => t.id === this.selectedTask.id);
-        if (taskIndex !== -1) {
-          this.tasks[taskIndex] = { ...this.selectedTask };
-        }
+        
+        // Обновляем задачу в основном списке
+        this.tasks = this.tasks.map(t => 
+          t.id === this.selectedTask.id ? this.selectedTask : t
+        );
         
         this.closeModal();
         this.$emit('task-updated');
