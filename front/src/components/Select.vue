@@ -42,7 +42,7 @@ export default {
       const orgsResponse = await getOrganizationsOfStaff();
       this.organizations = orgsResponse.organizations || [];
     } catch (error) {
-      console.error("Ошибка загрузки организаций:", error);
+      console.error("Error loading organizations:", error);
       this.error = error.message;
     } finally {
       this.isLoading = false;

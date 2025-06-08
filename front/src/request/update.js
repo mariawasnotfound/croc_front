@@ -1,85 +1,102 @@
-import URL from "./url.js";
+import URL from './url.js';
 
-export async function updatePreparationTask(taskId, data) {
+// Очередь обновлений
+const updateQueue = [];
+let isProcessing = false;
+
+/**
+ * Добавляет задачу в очередь на обновление
+ */
+export function enqueueMeasureUpdate(taskId, field, value) {
+  updateQueue.push({ taskId, field, value });
+  processQueue();
+}
+
+/**
+ * Обрабатывает очередь обновлений
+ */
+async function processQueue() {
+  if (isProcessing || updateQueue.length === 0) return;
+  isProcessing = true;
+
+  const { taskId, field, value } = updateQueue.shift();
+
   try {
-    const response = await fetch(`${URL}/preparation-book/task/${taskId}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      },
-      body: JSON.stringify({
-        completedAt: data.completedAt
-      }),
-      credentials: "include"
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Ошибка при обновлении задачи введения препарата');
-    }
-
-    return await response.json();
+    await sendMeasureUpdate(taskId, field, value);
+    console.log(`Показатель ${field} успешно обновлён`);
   } catch (error) {
-    console.error('Ошибка в updatePreparationTask:', error);
-    throw error;
+    console.error(`Ошибка при обновлении ${field}:`, error.message);
+    // Повторяем попытку через 3 секунды
+    setTimeout(() => {
+      enqueueMeasureUpdate(taskId, field, value);
+    }, 3000);
   }
+
+  isProcessing = false;
+  processQueue(); // Продолжаем обработку
+}
+
+/**
+ * Отправляет PATCH-запрос на сервер для одного поля
+ */
+async function sendMeasureUpdate(taskId, field, value) {
+  const response = await fetch(`${URL}/measure-book/task/${taskId}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${localStorage.getItem('token')}`
+    },
+    body: JSON.stringify({
+      result: { [field]: value }
+    }),
+    credentials: 'include'
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Ошибка ответа: ${text}`);
+  }
+
+  return await response.json();
+}
+
+/**
+ * Старые функции (для совместимости)
+ */
+export async function updatePreparationTask(taskId, data) {
+  const response = await fetch(`${URL}/preparation-book/task/${taskId}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${localStorage.getItem('token')}`
+    },
+    body: JSON.stringify(data),
+    credentials: 'include'
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || 'Ошибка при обновлении задачи введения препарата');
+  }
+
+  return await response.json();
 }
 
 export async function updateMeasureTask(taskId, data) {
-  try {
-    const requestData = {
-      completedAt: data.completedAt,
-      bloodPressure: data.result.bloodPressure === 'Не измерялось' ? null : parseInt(data.result.bloodPressure),
-      respiratoryRate: data.result.respiratoryRate === 'Не измерялось' ? null : parseInt(data.result.respiratoryRate),
-      heartRate: data.result.heartRate === 'Не измерялось' ? null : parseInt(data.result.heartRate)
-    };
+  const response = await fetch(`${URL}/measure-book/task/${taskId}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${localStorage.getItem('token')}`
+    },
+    body: JSON.stringify(data),
+    credentials: 'include'
+  });
 
-    Object.keys(requestData).forEach(key => {
-      if (requestData[key] === null) {
-        delete requestData[key];
-      }
-    });
-
-    const response = await fetch(`${URL}/measure-book/task/${taskId}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      },
-      body: JSON.stringify(requestData),
-      credentials: "include"
-    });
-
-    if (!response.ok) {
-      let errorMessage = 'Ошибка при обновлении задачи измерения';
-      
-      try {
-        const errorText = await response.text();
-        if (errorText) {
-          try {
-            const errorData = JSON.parse(errorText);
-            errorMessage = errorData.error || errorData.message || errorText;
-          } catch {
-            errorMessage = errorText;
-          }
-        }
-      } catch (e) {
-        console.error('Ошибка при чтении тела ошибки:', e);
-      }
-      
-      throw new Error(errorMessage);
-    }
-    
-    try {
-      const responseText = await response.text();
-      return responseText ? JSON.parse(responseText) : {};
-    } catch (e) {
-      console.warn('Ответ не содержит JSON, возвращаем пустой объект');
-      return {};
-    }
-  } catch (error) {
-    console.error('Ошибка в updateMeasureTask:', error);
-    throw error;
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || 'Ошибка при обновлении задачи измерения');
   }
+
+  return await response.json();
 }

@@ -23,6 +23,7 @@ export default {
       try {
         await login(this.username, this.password);
         this.$emit("login-success");
+        localStorage.setItem('isAuthenticated', 'true');
       } catch (error) {
         alert(error.message);
       }

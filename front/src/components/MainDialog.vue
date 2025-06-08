@@ -1,49 +1,30 @@
 <template>
   <div class="main-dialog">
-    <!-- Шапка с информацией о сотруднике -->
+    <!-- Шапка -->
     <div class="header">
       <button class="menu-button" @click="toggleFullscreenMenu">☰</button>
       <div class="title">
         {{ organizationName }} / {{ departmentName }} / {{ position }}: {{ staffName }}
       </div>
+      <button class="logout-button" @click="logout">Выйти</button>
     </div>
 
-    <!-- Блок фильтров и выбора даты -->
+    <!-- Фильтры даты -->
     <div class="filters">
       <div class="date-controls">
-        <button class="arrow-button" @click="shiftPeriod(-1)" aria-label="Предыдущий период">←</button>
-
+        <button class="arrow-button" @click="shiftPeriod(-1)">←</button>
         <div class="date-input-container">
-          <input 
-            v-model="dateRangeInput" 
-            type="text" 
-            placeholder="ДД.ММ.ГГ - ДД.ММ.ГГ"
-            class="date-input"
-            @focus="showCalendar"
-            @blur="handleDateInputBlur"
-            aria-label="Диапазон дат"
-          >
-          <button class="calendar-button" @click.stop="toggleCalendar" aria-label="Открыть календарь">📅</button>
-
-          <!-- Календарь с возможностью выбора периода -->
+          <input v-model="dateRangeInput" type="text" placeholder="ДД.ММ.ГГ - ДД.ММ.ГГ"
+            class="date-input" @focus="showCalendar" @blur="handleDateInputBlur">
+          <button class="calendar-button" @click.stop="toggleCalendar">📅</button>
           <div v-if="calendarVisible" class="calendar-wrapper">
-            <v-date-picker
-              v-model="calendarRange"
-              is-range
-              @input="handleCalendarSelect"
-              @clickOutside="closeCalendar"
-              :masks="{ input: 'DD.MM.YYYY' }"
-            />
+            <v-date-picker v-model="calendarRange" is-range @input="handleCalendarSelect"
+              @clickOutside="closeCalendar" :masks="{ input: 'DD.MM.YYYY' }" />
           </div>
         </div>
-
-        <button class="arrow-button" @click="shiftPeriod(1)" aria-label="Следующий период">→</button>
+        <button class="arrow-button" @click="shiftPeriod(1)">→</button>
       </div>
-
-      <!-- Индикатор периода -->
-      <div class="period-indicator">
-        {{ periodIndicator }}
-      </div>
+      <div class="period-indicator">{{ periodIndicator }}</div>
     </div>
 
     <!-- Журнал задач -->
@@ -62,19 +43,11 @@
           </tr>
         </thead>
         <tbody>
-          <tr 
-            v-for="(task, index) in tasks" 
-            :key="index" 
-            :class="{ inactive: task.inactive }"
-            @click="showPatientDetails(task)"
-          >
-            <td @click.stop> 
-              <input 
-                type="checkbox" 
-                v-model="task.inactive" 
-                @change="onTaskCheck(task)"
-                :id="'task-checkbox-' + index"
-              >
+          <tr v-for="(task, index) in tasks" :key="index" :class="{ inactive: task.inactive }"
+            @click="showPatientDetails(task)">
+            <td @click.stop>
+              <input type="checkbox" v-model="task.inactive" @change="onTaskCheck(task)"
+                :id="'task-checkbox-' + index">
               <label :for="'task-checkbox-' + index" class="visually-hidden">Отметить задачу как выполненную</label>
             </td>
             <td>{{ formatDateTime(task.scheduledAt) }}</td>
@@ -89,7 +62,6 @@
       </table>
       <div v-else class="no-tasks-message">
         <p class="no-tasks-title">Задач на текущий день нет</p>
-        
         <div v-if="nearestTasks.length > 0" class="nearest-tasks">
           <h4>Ближайшие задачи:</h4>
           <table>
@@ -103,11 +75,8 @@
               </tr>
             </thead>
             <tbody>
-              <tr 
-                v-for="(task, index) in nearestTasks" 
-                :key="'nearest-' + index"
-                @click="showPatientDetails(task)"
-              >
+              <tr v-for="(task, index) in nearestTasks" :key="'nearest-' + index"
+                @click="showPatientDetails(task)">
                 <td>{{ formatDateTime(task.scheduledAt) }}</td>
                 <td>{{ task.completedAt ? formatDateTime(task.completedAt) : '—' }}</td>
                 <td>{{ task.patientFullName }}</td>
@@ -120,7 +89,7 @@
       </div>
     </div>
 
-    <!-- Полноэкранное модальное окно меню -->
+    <!-- Меню -->
     <div v-if="menuVisible" class="fullscreen-menu-overlay" @click.self="closeMenu">
       <div class="fullscreen-menu">
         <button class="close-button" @click="closeMenu">×</button>
@@ -134,69 +103,66 @@
       </div>
     </div>
 
-    <!-- Модальное окно с деталями пациента -->
+    <!-- Модальное окно пациента -->
     <div v-if="selectedPatient" class="patient-modal-overlay" @click.self="closeModal">
       <div class="patient-modal">
         <button class="close-button" @click="closeModal">×</button>
         <h3>Информация о пациенте</h3>
-        
         <div class="patient-info">
           <div class="info-row">
             <span class="label">ФИО:</span>
             <span class="value">{{ selectedPatient.patientFullName }}</span>
           </div>
-          
           <div class="info-row">
             <span class="label">Дата рождения:</span>
             <span class="value">{{ formatDate(selectedPatient.birthDate) }}</span>
           </div>
-          
           <div class="info-row">
             <span class="label">Палата:</span>
             <span class="value">{{ selectedPatient.ward }}</span>
           </div>
-          
           <div class="info-row">
             <span class="label">Врач:</span>
             <span class="value">{{ selectedPatient.doctorFullName }}</span>
           </div>
-          
           <div class="info-row">
             <span class="label">Диагноз:</span>
             <span class="value">{{ selectedPatient.diagnosis }}</span>
           </div>
-          
           <div class="info-row">
             <span class="label">Аллергия:</span>
             <span class="value">{{ selectedPatient.allergy || 'Нет данных' }}</span>
           </div>
-          
           <div class="info-row">
             <span class="label">Дата и время задачи:</span>
             <span class="value">{{ formatDateTime(selectedTask.scheduledAt) }}</span>
           </div>
-          
+
+          <!-- Показатели -->
           <div class="vital-signs">
             <h4>Показатели:</h4>
             <div class="info-row">
               <span class="label">Давление:</span>
-              <input v-model="selectedPatient.bloodPressure" class="value-input" placeholder="Введите давление">
+              <input v-model.number="selectedPatient.bloodPressure" @input="onFieldChange('bloodPressure')" class="value-input"
+                placeholder="—" />
             </div>
             <div class="info-row">
               <span class="label">ЧДД:</span>
-              <input v-model="selectedPatient.respiratoryRate" class="value-input" placeholder="Введите ЧДД">
+              <input v-model.number="selectedPatient.respiratoryRate" @input="onFieldChange('respiratoryRate')"
+                class="value-input" placeholder="—" />
             </div>
             <div class="info-row">
               <span class="label">ЧСС:</span>
-              <input v-model="selectedPatient.heartRate" class="value-input" placeholder="Введите ЧСС">
+              <input v-model.number="selectedPatient.heartRate" @input="onFieldChange('heartRate')" class="value-input"
+                placeholder="—" />
             </div>
-            <button @click="updatePatientMeasures" class="save-button":disabled="isLoading">
+            <button @click="saveAllMeasures" class="save-button" :disabled="isLoading">
               {{ isLoading ? 'Сохранение...' : 'Сохранить показатели' }}
             </button>
           </div>
-          
-          <!-- Блок с информацией о лекарстве для задач типа preparation -->
-          <div class="medication-info" v-if="selectedPatient.medicationInfo">
+
+          <!-- Инфо о лекарствах -->
+          <div v-if="selectedPatient.medicationInfo" class="medication-info">
             <h4>Информация о лекарстве:</h4>
             <div class="info-row">
               <span class="label">Название:</span>
@@ -215,15 +181,6 @@
               <span class="value">{{ selectedPatient.medicationInfo.narcotic }}</span>
             </div>
           </div>
-          
-          <div class="tasks-list" v-if="selectedPatient.tasks && selectedPatient.tasks.length">
-            <h4>Задачи:</h4>
-            <ul>
-              <li v-for="(task, idx) in selectedPatient.tasks" :key="idx">
-                {{ task.description }} ({{ formatDateTime(task.dateTime) }})
-              </li>
-            </ul>
-          </div>
         </div>
       </div>
     </div>
@@ -234,25 +191,21 @@
 import { getHeader } from '../request/staff.js';
 import { getInPeriod } from '../request/tasks.js';
 import { getPreparationData, getMeasureData } from '../request/patient.js';
-import { updatePreparationTask, updateMeasureTask } from '../request/update.js';
+import { updatePreparationTask, enqueueMeasureUpdate } from '../request/update.js';
 import { DatePicker } from 'v-calendar';
+import { logout as fetchLogout } from '../request/logout.js'
 
 export default {
   props: {
-    organizationId: {
-      type: String,
-      required: true
-    },
-    departmentId: {
-      type: String,
-      required: true
-    }
+    organizationId: String,
+    departmentId: String
   },
-  
+  components: {
+    'v-date-picker': DatePicker
+  },
   data() {
     const today = new Date();
     const dateStr = this.formatDate(today);
-
     return {
       organizationName: '',
       departmentName: '',
@@ -260,12 +213,8 @@ export default {
       staffName: '',
       tasks: [],
       dateRangeInput: `${dateStr} - ${dateStr}`,
-      calendarRange: {
-        start: new Date(),
-        end: new Date()
-      },
+      calendarRange: { start: new Date(), end: new Date() },
       calendarVisible: false,
-      'v-date-picker': DatePicker,
       isLoading: false,
       error: null,
       selectedPatient: null,
@@ -274,61 +223,40 @@ export default {
       debounceLoadTasks: null
     };
   },
-
-  computed: {  
-    // Ближайшие задания
+  computed: {
     nearestTasks() {
       if (this.tasks.length === 0) return [];
-      
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      
       return this.tasks
-        .filter(task => {
-          const taskDate = new Date(task.scheduledAt);
-          return !task.inactive && taskDate >= today;
-        })
+        .filter(task => !task.inactive && new Date(task.scheduledAt) >= today)
         .sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt))
         .slice(0, 5);
     },
-    
     periodIndicator() {
       const [startStr, endStr] = this.dateRangeInput.split(' - ');
       const startDate = this.parseDate(startStr);
       const endDate = this.parseDate(endStr);
-      
-      if (startStr === endStr) {
-        return 'День: ' + this.formatDate(startDate);
-      }
-      
+      if (startStr === endStr) return 'День: ' + this.formatDate(startDate);
       const diffDays = Math.ceil(Math.abs(endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
-      
-      if (diffDays === 7) {
-        return 'Неделя: ' + startStr + ' - ' + endStr;
-      }
-      
-      return `Период: ${diffDays} дней`;
+      return diffDays === 7 ? 'Неделя: ' + startStr + ' - ' + endStr : `Период: ${diffDays} дней`;
     }
   },
-
   watch: {
     calendarRange: {
+      deep: true,
       handler(newVal) {
         if (newVal?.start && newVal?.end) {
           this.dateRangeInput = `${this.formatDate(newVal.start)} - ${this.formatDate(newVal.end)}`;
           this.loadTasks();
         }
-      },
-      deep: true
+      }
     }
   },
-
   async mounted() {
     await this.loadData();
   },
-  
   methods: {
-    // Загрузка данных
     async loadData() {
       this.isLoading = true;
       try {
@@ -340,13 +268,11 @@ export default {
         this.isLoading = false;
       }
     },
-
     formatDate(date) {
       if (!date) return '';
       const d = new Date(date);
       return d.toLocaleDateString('ru-RU');
     },
-    
     formatDateTime(datetime) {
       if (!datetime) return '';
       const d = new Date(datetime);
@@ -358,14 +284,11 @@ export default {
         minute: '2-digit'
       });
     },
-    
     parseDate(dateStr) {
       if (!dateStr) return new Date();
       const [day, month, year] = dateStr.split('.');
       return new Date(`${year}-${month}-${day}T00:00:00`);
     },
-
-    // Информация о пользователе
     async loadStaffInfo() {
       try {
         const staffInfo = await getHeader();
@@ -374,29 +297,34 @@ export default {
         this.organizationName = staffInfo.organizationName;
         this.departmentName = staffInfo.departmentName;
       } catch (error) {
-        console.error('Не удалось загрузить информацию о сотруднике:', error);
+        console.error('Ошибка загрузки информации о сотруднике:', error);
         this.staffName = 'Неизвестный сотрудник';
-        this.position = 'Должность не указана';
-        this.organizationName = 'Организация не указана';
-        this.departmentName = 'Отделение не указано';
-        this.error = 'Не удалось загрузить информацию о сотруднике';
       }
     },
-
-    // Подробная информация о задаче
     async showPatientDetails(task) {
       try {
         this.isLoading = true;
-        const isMeasureTask = task.measures !== null;
-        const isPreparationTask = task.preparations !== null;
-        
-        let taskDetails = null;
-        if (isMeasureTask) {
-          taskDetails = await getMeasureData(task.id);
-        } else if (isPreparationTask) {
-          taskDetails = await getPreparationData(task.id);
+
+        const existingTask = this.tasks.find(t => t.id === task.id);
+        if (existingTask && existingTask.result) {
+          this.selectedTask = existingTask;
+          this.selectedPatient = {
+            patientFullName: `${existingTask.patientSurname} ${existingTask.patientFirstname} ${existingTask.patientLastname}`,
+            birthDate: existingTask.birthDate,
+            ward: existingTask.ward,
+            doctorFullName: `${existingTask.doctorSurname} ${existingTask.doctorFirstname} ${existingTask.doctorLastname}`,
+            diagnosis: existingTask.diagnosis,
+            allergy: existingTask.allergy || 'Нет данных',
+            bloodPressure: existingTask.result?.[0] ?? null,
+            respiratoryRate: existingTask.result?.[1] ?? null,
+            heartRate: existingTask.result?.[2] ?? null
+          };
+          return;
         }
-        
+
+        const isMeasureTask = task.measures !== null;
+        const taskDetails = isMeasureTask ? await getMeasureData(task.id) : await getPreparationData(task.id);
+
         this.selectedTask = task;
         this.selectedPatient = {
           patientFullName: `${taskDetails.patientSurname} ${taskDetails.patientFirstname} ${taskDetails.patientLastname}`,
@@ -405,24 +333,12 @@ export default {
           doctorFullName: `${taskDetails.doctorSurname} ${taskDetails.doctorFirstname} ${taskDetails.doctorLastname}`,
           diagnosis: taskDetails.diagnosis,
           allergy: taskDetails.allergy || 'Нет данных',
-          // Преобразуем значения для отображения
-          bloodPressure: isMeasureTask 
-            ? (taskDetails.result?.bloodPressure ? taskDetails.result.bloodPressure.toString() : 'Не измерялось') 
-            : 'Не измерялось',
-          respiratoryRate: isMeasureTask 
-            ? (taskDetails.result?.respiratoryRate ? taskDetails.result.respiratoryRate.toString() : 'Не измерялось') 
-            : 'Не измерялось',
-          heartRate: isMeasureTask 
-            ? (taskDetails.result?.heartRate ? taskDetails.result.heartRate.toString() : 'Не измерялось') 
-            : 'Не измерялось',
-          tasks: [
-            {
-              description: isMeasureTask ? taskDetails.taskName : taskDetails.taskName,
-              dateTime: task.scheduledAt
-            }
-          ]
+          bloodPressure: isMeasureTask ? taskDetails.result?.[0] ?? null : null,
+          respiratoryRate: isMeasureTask ? taskDetails.result?.[1] ?? null : null,
+          heartRate: isMeasureTask ? taskDetails.result?.[2] ?? null : null
         };
-        if (isPreparationTask) {
+
+        if (task.preparations !== null) {
           this.selectedPatient.medicationInfo = {
             name: taskDetails.taskName,
             dosage: taskDetails.dosage,
@@ -430,21 +346,50 @@ export default {
             narcotic: taskDetails.narcotic ? 'Да' : 'Нет'
           };
         }
-        
+
       } catch (error) {
-        console.error('Ошибка загрузки деталей задачи:', error);
+        console.error('Ошибка при открытии деталей пациента:', error);
         this.error = 'Не удалось загрузить информацию о пациенте';
       } finally {
         this.isLoading = false;
       }
     },
-    
-    // Загрузка задач
-    async loadTasks() {
-      if (this.debounceLoadTasks) {
-        clearTimeout(this.debounceLoadTasks);
+    onFieldChange(field) {
+      const value = this.selectedPatient[field];
+      if (this.selectedTask && value !== undefined) {
+        enqueueMeasureUpdate(this.selectedTask.id, field, value);
       }
-      
+    },
+    async saveAllMeasures() {
+      if (!this.selectedTask || !this.selectedPatient) return;
+
+      const prepareValue = (val) => {
+        const num = parseFloat(val);
+        return isNaN(num) ? null : num;
+      };
+
+      const updatedResult = {
+        bloodPressure: prepareValue(this.selectedPatient.bloodPressure),
+        respiratoryRate: prepareValue(this.selectedPatient.respiratoryRate),
+        heartRate: prepareValue(this.selectedPatient.heartRate)
+      };
+
+      try {
+        this.isLoading = true;
+        await enqueueMeasureUpdate(this.selectedTask.id, 'all', Object.values(updatedResult));
+        this.selectedTask.completedAt = this.selectedTask.completedAt || new Date().toISOString();
+        this.selectedTask.inactive = true;
+        this.selectedTask.result = Object.values(updatedResult);
+        this.closeModal();
+      } catch (error) {
+        console.error('Ошибка при обновлении показателей:', error);
+        this.error = 'Не удалось сохранить показатели';
+      } finally {
+        this.isLoading = false;
+      }
+    },
+    async loadTasks() {
+      if (this.debounceLoadTasks) clearTimeout(this.debounceLoadTasks);
       this.debounceLoadTasks = setTimeout(async () => {
         try {
           const [startStr, endStr] = this.dateRangeInput.split(' - ');
@@ -452,175 +397,89 @@ export default {
             const [day, month, year] = dateStr.split('.');
             return `${year}-${month}-${day}`;
           };
-          
           const response = await getInPeriod(toISODate(startStr), toISODate(endStr));
           this.tasks = Array.isArray(response?.tasks) ? response.tasks.flat() : [];
+          this.sortTasks();
         } catch (error) {
           console.error('Ошибка загрузки задач:', error);
           this.tasks = [];
-          this.error = 'Не удалось загрузить задачи';
         }
       }, 300);
     },
-
-    // Галочка (задача выполнена)
-    async onTaskCheck(task) {
-      try {
-        this.isLoading = true;
-        const isMeasureTask = task.measures !== null;
-        const isPreparationTask = task.preparations !== null;
-          
-        if (task.inactive && !task.completedAt) {
-          task.completedAt = new Date().toISOString();
-            
-          if (isMeasureTask && !task.result) {
-            task.result = {
-              bloodPressure: 'Не измерялось',
-              respiratoryRate: 'Не измерялось',
-              heartRate: 'Не измерялось'
-            };
-          }
-            
-          if (isMeasureTask) {
-            await updateMeasureTask(task.id, {
-              completedAt: task.completedAt,
-              result: task.result
-            });
-          } else if (isPreparationTask) {
-            await updatePreparationTask(task.id, {
-              completedAt: task.completedAt
-            });
-          }
-        } else if (!task.inactive) {
-          task.completedAt = null;
-        }
-      } catch (error) {
-        console.error('Ошибка при обновлении задачи:', error);
-        task.inactive = !task.inactive;
-        task.completedAt = null;
-        this.error = 'Не удалось обновить задачу';
-      } finally {
-        this.isLoading = false;
-      }
+    sortTasks() {
+      this.tasks.sort((a, b) => {
+        if (a.inactive && !b.inactive) return 1;
+        if (!a.inactive && b.inactive) return -1;
+        return new Date(a.scheduledAt) - new Date(b.scheduledAt);
+      });
     },
-    
-    // Добавление значений измерений
-    async updatePatientMeasures() {
-      try {
-        this.isLoading = true;
-        if (!this.selectedTask || !this.selectedPatient) return;
-        
-        const prepareValue = (value) => {
-          if (value === 'Не измерялось' || value === null || value === undefined || value === '') {
-            return null;
-          }
-          const num = Number(value);
-          return isNaN(num) ? null : num;
-        };
-
-        const resultData = {
-          completedAt: this.selectedTask.completedAt || new Date().toISOString(),
-          result: {
-            bloodPressure: prepareValue(this.selectedPatient.bloodPressure),
-            respiratoryRate: prepareValue(this.selectedPatient.respiratoryRate),
-            heartRate: prepareValue(this.selectedPatient.heartRate)
-          }
-        };
-
-        const result = await updateMeasureTask(this.selectedTask.id, resultData);
-
-        // Обновляем локальное состояние
-        this.selectedTask.completedAt = this.selectedTask.completedAt || new Date().toISOString();
-        this.selectedTask.inactive = true;
-        
-        // Обновляем задачу в основном списке
-        this.tasks = this.tasks.map(t => 
-          t.id === this.selectedTask.id ? this.selectedTask : t
-        );
-        
-        this.closeModal();
-        this.$emit('task-updated');
-      } catch (error) {
-        console.error('Ошибка при обновлении показателей:', error);
-        this.error = 'Не удалось обновить показатели: ' + (error.message || 'Неизвестная ошибка');
-        this.selectedTask.inactive = false;
-      } finally {
-        this.isLoading = false;
-      }
-    },
-    
     toggleFullscreenMenu() {
       this.menuVisible = !this.menuVisible;
     },
-    
     closeMenu() {
       this.menuVisible = false;
     },
-    
     navigateTo(route) {
       this.closeMenu();
       this.$router.push(route);
     },
-    
     logout() {
       this.closeMenu();
-      // Реализация выхода
     },
-    
     showCalendar() {
       this.calendarVisible = true;
     },
-    
     closeCalendar() {
       this.calendarVisible = false;
     },
-    
     toggleCalendar() {
       this.calendarVisible = !this.calendarVisible;
     },
-    
     handleCalendarSelect(range) {
       this.calendarRange = range;
       this.closeCalendar();
     },
-    
     handleDateInputBlur() {
       const dates = this.dateRangeInput.split(' - ');
       if (dates.length === 2) {
         try {
           const startDate = this.parseDate(dates[0].trim());
           const endDate = this.parseDate(dates[1].trim());
-          
           if (startDate && endDate && startDate <= endDate) {
             this.calendarRange = { start: startDate, end: endDate };
             return;
           }
         } catch (e) {
-          console.error('Invalid date format');
+          console.error('Неверный формат даты');
         }
       }
-      
-      // Восстановление предыдущего значения при ошибке
       this.dateRangeInput = `${this.formatDate(this.calendarRange.start)} - ${this.formatDate(this.calendarRange.end)}`;
     },
-    
     shiftPeriod(direction) {
       const diffDays = Math.ceil(
         (this.calendarRange.end - this.calendarRange.start) / (1000 * 60 * 60 * 24)
       ) + 1;
-      
       const newStart = new Date(this.calendarRange.start);
       newStart.setDate(newStart.getDate() + direction * diffDays);
-      
       const newEnd = new Date(this.calendarRange.end);
       newEnd.setDate(newEnd.getDate() + direction * diffDays);
-      
       this.calendarRange = { start: newStart, end: newEnd };
     },
-    
     closeModal() {
       this.selectedPatient = null;
       this.selectedTask = null;
+    },
+    async logout() {
+      try {
+        await fetchLogout();
+        localStorage.removeItem('isAuthenticated');
+        localStorage.removeItem('organizationId');
+        localStorage.removeItem('departmentId');
+        this.$router.push('/login');
+      } catch (error) {
+        alert(error.message);
+        console.error(error);
+      }
     }
   }
 };
@@ -651,16 +510,31 @@ export default {
 
 .header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   padding: 10px;
   background-color: #f0f0f0;
   border-radius: 5px;
 }
 
+.logout-button {
+  padding: 10px 20px;
+  font-size: 18px;
+  background: #ff6666;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  margin-left: auto;
+}
+
+.logout-button:hover {
+  background: #ff3333;
+}
+
 .title {
   font-size: 18px;
   font-weight: bold;
+  text-align: left;
 }
 
 .filters {
