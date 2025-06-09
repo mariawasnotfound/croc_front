@@ -1,10 +1,12 @@
 <template>
-  <MainDialog
-    :organization-id="organizationId"
-    :department-id="departmentId"
-    @open-menu="showMenu = true"
-    @staff-info-updated="updateStaffInfo"
-  />
+  <div v-if="isAuthenticated">
+    <MainDialog
+      :organization-id="organizationId"
+      :department-id="departmentId"
+      @open-menu="showMenu = true"
+      @staff-info-updated="updateStaffInfo"
+    />
+  </div>
 </template>
 
 <script>
@@ -16,7 +18,13 @@ export default {
     return {
       organizationId: localStorage.getItem('organizationId'),
       departmentId: localStorage.getItem('departmentId'),
-      showMenu: false
+      showMenu: false,
+      isAuthenticated: localStorage.getItem('isAuthenticated') === 'true'
+    }
+  },
+  mounted() {
+    if (!this.isAuthenticated) {
+      this.$router.push('/login');
     }
   },
   methods: {

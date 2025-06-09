@@ -4,17 +4,13 @@ import URL from './url.js';
 const updateQueue = [];
 let isProcessing = false;
 
-/**
- * Добавляет задачу в очередь на обновление
- */
+// Добавляет задачу в очередь на обновление
 export function enqueueMeasureUpdate(taskId, field, value) {
   updateQueue.push({ taskId, field, value });
   processQueue();
 }
 
-/**
- * Обрабатывает очередь обновлений
- */
+// Обрабатывает очередь обновлений
 async function processQueue() {
   if (isProcessing || updateQueue.length === 0) return;
   isProcessing = true;
@@ -26,19 +22,16 @@ async function processQueue() {
     console.log(`Показатель ${field} успешно обновлён`);
   } catch (error) {
     console.error(`Ошибка при обновлении ${field}:`, error.message);
-    // Повторяем попытку через 3 секунды
     setTimeout(() => {
       enqueueMeasureUpdate(taskId, field, value);
     }, 3000);
   }
 
   isProcessing = false;
-  processQueue(); // Продолжаем обработку
+  processQueue();
 }
 
-/**
- * Отправляет PATCH-запрос на сервер для одного поля
- */
+// Отправляет PATCH-запрос на сервер для одного поля
 async function sendMeasureUpdate(taskId, field, value) {
   const response = await fetch(`${URL}/measure-book/task/${taskId}`, {
     method: 'PATCH',
@@ -60,9 +53,7 @@ async function sendMeasureUpdate(taskId, field, value) {
   return await response.json();
 }
 
-/**
- * Старые функции (для совместимости)
- */
+// Старые функции (для совместимости)
 export async function updatePreparationTask(taskId, data) {
   const response = await fetch(`${URL}/preparation-book/task/${taskId}`, {
     method: 'PATCH',

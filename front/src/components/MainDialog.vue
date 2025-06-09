@@ -8,7 +8,6 @@
       </div>
       <button class="logout-button" @click="logout">Выйти</button>
     </div>
-
     <!-- Фильтры даты -->
     <div class="filters">
       <div class="date-controls">
@@ -26,20 +25,40 @@
       </div>
       <div class="period-indicator">{{ periodIndicator }}</div>
     </div>
-
     <!-- Журнал задач -->
     <div class="journal">
       <table v-if="tasks.length > 0">
         <thead>
           <tr>
             <th></th>
-            <th>Время выполнения</th>
-            <th>Задача выполнена</th>
-            <th>Пациент</th>
-            <th>Дата рождения</th>
-            <th>Палата</th>
-            <th>Измерения</th>
-            <th>Лек. препараты</th>
+            <th @click="sortBy('scheduledAt')">
+              Время выполнения
+              <span class="sort-indicator" :class="getSortIndicatorClass('scheduledAt')">▲▼</span>
+            </th>
+            <th @click="sortBy('completedAt')">
+              Задача выполнена
+              <span class="sort-indicator" :class="getSortIndicatorClass('completedAt')">▲▼</span>
+            </th>
+            <th @click="sortBy('patientFullName')">
+              Пациент
+              <span class="sort-indicator" :class="getSortIndicatorClass('patientFullName')">▲▼</span>
+            </th>
+            <th @click="sortBy('birthDate')">
+              Дата рождения
+              <span class="sort-indicator" :class="getSortIndicatorClass('birthDate')">▲▼</span>
+            </th>
+            <th @click="sortBy('ward')">
+              Палата
+              <span class="sort-indicator" :class="getSortIndicatorClass('ward')">▲▼</span>
+            </th>
+            <th @click="sortBy('measures')">
+              Измерения
+              <span class="sort-indicator" :class="getSortIndicatorClass('measures')">▲▼</span>
+            </th>
+            <th @click="sortBy('preparations')">
+              Лек. препараты
+              <span class="sort-indicator" :class="getSortIndicatorClass('preparations')">▲▼</span>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -67,11 +86,26 @@
           <table>
             <thead>
               <tr>
-                <th>Время выполнения</th>
-                <th>Задача выполнена</th>
-                <th>Пациент</th>
-                <th>Дата рождения</th>
-                <th>Палата</th>
+                <th @click="sortBy('scheduledAt')">
+                  Время выполнения
+                  <span class="sort-indicator" :class="getSortIndicatorClass('scheduledAt')">▲▼</span>
+                </th>
+                <th @click="sortBy('completedAt')">
+                  Задача выполнена
+                  <span class="sort-indicator" :class="getSortIndicatorClass('completedAt')">▲▼</span>
+                </th>
+                <th @click="sortBy('patientFullName')">
+                  Пациент
+                  <span class="sort-indicator" :class="getSortIndicatorClass('patientFullName')">▲▼</span>
+                </th>
+                <th @click="sortBy('birthDate')">
+                  Дата рождения
+                  <span class="sort-indicator" :class="getSortIndicatorClass('birthDate')">▲▼</span>
+                </th>
+                <th @click="sortBy('ward')">
+                  Палата
+                  <span class="sort-indicator" :class="getSortIndicatorClass('ward')">▲▼</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -88,7 +122,6 @@
         </div>
       </div>
     </div>
-
     <!-- Меню -->
     <div v-if="menuVisible" class="fullscreen-menu-overlay" @click.self="closeMenu">
       <div class="fullscreen-menu">
@@ -102,7 +135,6 @@
         </ul>
       </div>
     </div>
-
     <!-- Модальное окно пациента -->
     <div v-if="selectedPatient" class="patient-modal-overlay" @click.self="closeModal">
       <div class="patient-modal">
@@ -137,30 +169,45 @@
             <span class="label">Дата и время задачи:</span>
             <span class="value">{{ formatDateTime(selectedTask.scheduledAt) }}</span>
           </div>
-
           <!-- Показатели -->
-          <div class="vital-signs">
+          <div class="vital-signs" v-if="selectedPatient.measureType">
             <h4>Показатели:</h4>
-            <div class="info-row">
+            <div class="info-row" v-if="selectedPatient.measureType === 'bloodPressure'">
               <span class="label">Давление:</span>
-              <input v-model.number="selectedPatient.bloodPressure" @input="onFieldChange('bloodPressure')" class="value-input"
-                placeholder="—" />
+              <input v-model="selectedPatient.bloodPressure"
+                     class="value-input"
+                     placeholder="120/80"
+                     @input="onFieldChange('bloodPressure')" />
+              <span v-if="validationErrors.bloodPressure" class="error-text">{{ validationErrors.bloodPressure }}</span>
             </div>
-            <div class="info-row">
+            <div class="info-row" v-if="selectedPatient.measureType === 'respiratoryRate'">
               <span class="label">ЧДД:</span>
-              <input v-model.number="selectedPatient.respiratoryRate" @input="onFieldChange('respiratoryRate')"
-                class="value-input" placeholder="—" />
+              <input v-model.number="selectedPatient.respiratoryRate"
+                     class="value-input"
+                     placeholder="16"
+                     @input="onFieldChange('respiratoryRate')" />
+              <span v-if="validationErrors.respiratoryRate" class="error-text">{{ validationErrors.respiratoryRate }}</span>
             </div>
-            <div class="info-row">
+            <div class="info-row" v-if="selectedPatient.measureType === 'heartRate'">
               <span class="label">ЧСС:</span>
-              <input v-model.number="selectedPatient.heartRate" @input="onFieldChange('heartRate')" class="value-input"
-                placeholder="—" />
+              <input v-model.number="selectedPatient.heartRate"
+                     class="value-input"
+                     placeholder="72"
+                     @input="onFieldChange('heartRate')" />
+              <span v-if="validationErrors.heartRate" class="error-text">{{ validationErrors.heartRate }}</span>
             </div>
-            <button @click="saveAllMeasures" class="save-button" :disabled="isLoading">
+            <div class="info-row" v-if="selectedPatient.measureType === 'temperature'">
+              <span class="label">Температура:</span>
+              <input v-model="selectedPatient.temperature"
+                     class="value-input"
+                     placeholder="36.7"
+                     @input="onFieldChange('temperature')" />
+              <span v-if="validationErrors.temperature" class="error-text">{{ validationErrors.temperature }}</span>
+            </div>
+            <button @click="showSaveConfirmation" class="save-button" :disabled="isLoading">
               {{ isLoading ? 'Сохранение...' : 'Сохранить показатели' }}
             </button>
           </div>
-
           <!-- Инфо о лекарствах -->
           <div v-if="selectedPatient.medicationInfo" class="medication-info">
             <h4>Информация о лекарстве:</h4>
@@ -181,6 +228,17 @@
               <span class="value">{{ selectedPatient.medicationInfo.narcotic }}</span>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+    <!-- Модальное окно подтверждения -->
+    <div v-if="isConfirmModalVisible" class="confirm-modal-overlay" @click.self="hideSaveConfirmation">
+      <div class="confirm-modal">
+        <h4>Подтверждение действия</h4>
+        <p>Вы уверены, что хотите сохранить показатель?</p>
+        <div class="confirm-buttons">
+          <button @click="saveAllMeasuresConfirmed" class="confirm-button">Да</button>
+          <button @click="hideSaveConfirmation" class="cancel-button">Нет</button>
         </div>
       </div>
     </div>
@@ -220,7 +278,13 @@ export default {
       selectedPatient: null,
       selectedTask: null,
       menuVisible: false,
-      debounceLoadTasks: null
+      debounceLoadTasks: null,
+      validationErrors: {},
+      isConfirmModalVisible: false,
+      sortConfig: {
+        key: null,
+        direction: 1
+      }
     };
   },
   computed: {
@@ -254,12 +318,100 @@ export default {
     }
   },
   async mounted() {
+    const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+    if (!isAuthenticated) {
+      this.$router.push('/login');
+      return;
+    }
     await this.loadData();
   },
   methods: {
+    detectMeasureType(measuresText) {
+      if (!measuresText) return null;
+      measuresText = measuresText.toLowerCase();
+      if (measuresText.includes('давление')) return 'bloodPressure';
+      if (measuresText.includes('температура')) return 'temperature';
+      if (measuresText.includes('чдд')) return 'respiratoryRate';
+      if (measuresText.includes('чсс')) return 'heartRate';
+      return null;
+    },
+    onFieldChange(field) {
+      const value = this.selectedPatient[field];
+      let isValid = true;
+      switch (field) {
+        case 'bloodPressure':
+          isValid = this.validateBloodPressure(value);
+          break;
+        case 'respiratoryRate':
+          isValid = this.validateRespiratoryRate(value);
+          break;
+        case 'heartRate':
+          isValid = this.validateHeartRate(value);
+          break;
+        case 'temperature':
+          isValid = this.validateTemperature(value);
+          break;
+      }
+      if (isValid && this.selectedTask && value !== undefined && value !== '') {
+        enqueueMeasureUpdate(this.selectedTask.id, 'result', String(value));
+      }
+      return isValid;
+    },
+    validateBloodPressure(value) {
+      const regex = /^(\d{2,3})\/(\d{2,3})$/;
+      if (!regex.test(value)) {
+        this.validationErrors.bloodPressure = 'Формат: 120/80';
+        return false;
+      }
+      this.validationErrors.bloodPressure = null;
+      return true;
+    },
+    validateRespiratoryRate(value) {
+      const num = parseInt(value, 10);
+      if (isNaN(num) || num < 6 || num > 40) {
+        this.validationErrors.respiratoryRate = 'Введите число от 6 до 40';
+        return false;
+      }
+      this.validationErrors.respiratoryRate = null;
+      return true;
+    },
+    validateHeartRate(value) {
+      const num = parseInt(value, 10);
+      if (isNaN(num) || num < 30 || num > 200) {
+        this.validationErrors.heartRate = 'Введите число от 30 до 200';
+        return false;
+      }
+      this.validationErrors.heartRate = null;
+      return true;
+    },
+    validateTemperature(value) {
+      const num = parseFloat(value.replace(',', '.'));
+      if (isNaN(num) || num < 34 || num > 42) {
+        this.validationErrors.temperature = 'Введите число от 34 до 42';
+        return false;
+      }
+      this.validationErrors.temperature = null;
+      return true;
+    },
+    showSaveConfirmation() {
+      if (!this.onFieldChange(this.selectedPatient.measureType)) return;
+      this.isConfirmModalVisible = true;
+    },
+    hideSaveConfirmation() {
+      this.isConfirmModalVisible = false;
+    },
+    async saveAllMeasuresConfirmed() {
+      this.hideSaveConfirmation();
+      await this.saveAllMeasures();
+    },
     async loadData() {
       this.isLoading = true;
       try {
+        if (!localStorage.getItem('isAuthenticated')) {
+          console.log('Пользователь не авторизован. Перенаправление на страницу входа.');
+          this.$router.push('/login');
+          return;
+        }
         await Promise.all([this.loadStaffInfo(), this.loadTasks()]);
       } catch (error) {
         console.error('Ошибка загрузки данных:', error);
@@ -292,6 +444,10 @@ export default {
     async loadStaffInfo() {
       try {
         const staffInfo = await getHeader();
+        if (!staffInfo) {
+          console.warn('Данные о сотруднике не найдены');
+          return;
+        }
         this.staffName = staffInfo.name;
         this.position = staffInfo.position;
         this.organizationName = staffInfo.organizationName;
@@ -304,40 +460,21 @@ export default {
     async showPatientDetails(task) {
       try {
         this.isLoading = true;
-
-        const existingTask = this.tasks.find(t => t.id === task.id);
-        if (existingTask && existingTask.result) {
-          this.selectedTask = existingTask;
-          this.selectedPatient = {
-            patientFullName: `${existingTask.patientSurname} ${existingTask.patientFirstname} ${existingTask.patientLastname}`,
-            birthDate: existingTask.birthDate,
-            ward: existingTask.ward,
-            doctorFullName: `${existingTask.doctorSurname} ${existingTask.doctorFirstname} ${existingTask.doctorLastname}`,
-            diagnosis: existingTask.diagnosis,
-            allergy: existingTask.allergy || 'Нет данных',
-            bloodPressure: existingTask.result?.[0] ?? null,
-            respiratoryRate: existingTask.result?.[1] ?? null,
-            heartRate: existingTask.result?.[2] ?? null
-          };
-          return;
-        }
-
-        const isMeasureTask = task.measures !== null;
-        const taskDetails = isMeasureTask ? await getMeasureData(task.id) : await getPreparationData(task.id);
-
         this.selectedTask = task;
+        const taskDetails = await getMeasureData(task.id);
         this.selectedPatient = {
           patientFullName: `${taskDetails.patientSurname} ${taskDetails.patientFirstname} ${taskDetails.patientLastname}`,
           birthDate: taskDetails.birthDate,
           ward: taskDetails.ward,
           doctorFullName: `${taskDetails.doctorSurname} ${taskDetails.doctorFirstname} ${taskDetails.doctorLastname}`,
           diagnosis: taskDetails.diagnosis,
-          allergy: taskDetails.allergy || 'Нет данных',
-          bloodPressure: isMeasureTask ? taskDetails.result?.[0] ?? null : null,
-          respiratoryRate: isMeasureTask ? taskDetails.result?.[1] ?? null : null,
-          heartRate: isMeasureTask ? taskDetails.result?.[2] ?? null : null
+          allergy: taskDetails.allergy || 'Нет данных'
         };
-
+        const measureType = this.detectMeasureType(task.measures);
+        this.selectedPatient.measureType = measureType;
+        if (measureType) {
+          this.selectedPatient[measureType] = taskDetails.result || '';
+        }
         if (task.preparations !== null) {
           this.selectedPatient.medicationInfo = {
             name: taskDetails.taskName,
@@ -346,7 +483,6 @@ export default {
             narcotic: taskDetails.narcotic ? 'Да' : 'Нет'
           };
         }
-
       } catch (error) {
         console.error('Ошибка при открытии деталей пациента:', error);
         this.error = 'Не удалось загрузить информацию о пациенте';
@@ -354,32 +490,17 @@ export default {
         this.isLoading = false;
       }
     },
-    onFieldChange(field) {
-      const value = this.selectedPatient[field];
-      if (this.selectedTask && value !== undefined) {
-        enqueueMeasureUpdate(this.selectedTask.id, field, value);
-      }
-    },
     async saveAllMeasures() {
       if (!this.selectedTask || !this.selectedPatient) return;
-
-      const prepareValue = (val) => {
-        const num = parseFloat(val);
-        return isNaN(num) ? null : num;
-      };
-
-      const updatedResult = {
-        bloodPressure: prepareValue(this.selectedPatient.bloodPressure),
-        respiratoryRate: prepareValue(this.selectedPatient.respiratoryRate),
-        heartRate: prepareValue(this.selectedPatient.heartRate)
-      };
-
       try {
         this.isLoading = true;
-        await enqueueMeasureUpdate(this.selectedTask.id, 'all', Object.values(updatedResult));
+        const measureType = this.selectedPatient.measureType;
+        const value = this.selectedPatient[measureType];
+        if (!value) throw new Error('Значение не введено');
+        await enqueueMeasureUpdate(this.selectedTask.id, 'result', String(value));
+        this.selectedTask.result = value;
         this.selectedTask.completedAt = this.selectedTask.completedAt || new Date().toISOString();
         this.selectedTask.inactive = true;
-        this.selectedTask.result = Object.values(updatedResult);
         this.closeModal();
       } catch (error) {
         console.error('Ошибка при обновлении показателей:', error);
@@ -407,11 +528,45 @@ export default {
       }, 300);
     },
     sortTasks() {
+      if (!this.sortConfig.key) return;
+
+      const key = this.sortConfig.key;
+      const direction = this.sortConfig.direction;
+
       this.tasks.sort((a, b) => {
-        if (a.inactive && !b.inactive) return 1;
-        if (!a.inactive && b.inactive) return -1;
-        return new Date(a.scheduledAt) - new Date(b.scheduledAt);
+        let valA = a[key];
+        let valB = b[key];
+
+        if (key === 'scheduledAt' || key === 'completedAt') {
+          valA = new Date(valA);
+          valB = new Date(valB);
+        }
+
+        if (typeof valA === 'string' && typeof valB === 'string') {
+          valA = valA.toLowerCase();
+          valB = valB.toLowerCase();
+        }
+
+        if (valA < valB) return -1 * direction;
+        if (valA > valB) return 1 * direction;
+        return 0;
       });
+    },
+    sortBy(key) {
+      const config = this.sortConfig;
+
+      if (config.key === key) {
+        config.direction *= -1;
+      } else {
+        config.key = key;
+        config.direction = 1;
+      }
+
+      this.sortTasks();
+    },
+    getSortIndicatorClass(key) {
+      if (this.sortConfig.key !== key) return '';
+      return this.sortConfig.direction === 1 ? 'asc' : 'desc';
     },
     toggleFullscreenMenu() {
       this.menuVisible = !this.menuVisible;
@@ -502,20 +657,22 @@ export default {
   padding: 5px 10px;
   margin-right: 10px;
 }
-
 .menu-button:hover {
   background-color: #e0e0e0;
   border-radius: 4px;
 }
-
 .header {
   display: flex;
+  justify-content: space-between;
   align-items: center;
   padding: 10px;
   background-color: #f0f0f0;
   border-radius: 5px;
 }
-
+.title {
+  font-size: 18px;
+  font-weight: bold;
+}
 .logout-button {
   padding: 10px 20px;
   font-size: 18px;
@@ -530,13 +687,6 @@ export default {
 .logout-button:hover {
   background: #ff3333;
 }
-
-.title {
-  font-size: 18px;
-  font-weight: bold;
-  text-align: left;
-}
-
 .filters {
   display: flex;
   justify-content: space-between;
@@ -545,24 +695,20 @@ export default {
   background-color: #f5f5f5;
   border-radius: 5px;
 }
-
 .date-controls {
   display: flex;
   align-items: center;
   gap: 10px;
 }
-
 .date-input-container {
   position: relative;
 }
-
 .date-input {
   padding: 8px 30px 8px 10px;
   border: 1px solid #ccc;
   border-radius: 4px;
   width: 200px;
 }
-
 .calendar-button {
   position: absolute;
   right: 5px;
@@ -572,7 +718,6 @@ export default {
   border: none;
   cursor: pointer;
 }
-
 .v-date-picker {
   position: absolute;
   top: 100%;
@@ -584,19 +729,16 @@ export default {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   margin-top: 5px;
 }
-
 .arrow-button {
   background: none;
   border: none;
   font-size: 18px;
   cursor: pointer;
 }
-
 .period-type {
   display: flex;
   gap: 10px;
 }
-
 .period-type button {
   padding: 5px 10px;
   border: 1px solid #ccc;
@@ -604,43 +746,35 @@ export default {
   background: white;
   cursor: pointer;
 }
-
 .period-type button.active {
   background-color: #007bff;
   color: white;
   border-color: #007bff;
 }
-
 .journal {
   overflow-x: auto;
 }
-
 .inactive {
   color: gray;
   text-decoration: line-through;
 }
-
 table {
   width: 100%;
   border-collapse: collapse;
 }
-
 th, td {
   border: 1px solid #ddd;
   padding: 8px;
   text-align: left;
 }
-
 th {
   background-color: #f2f2f2;
   position: sticky;
   top: 0;
 }
-
 tr:nth-child(even) {
   background-color: #f9f9f9;
 }
-
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -651,7 +785,6 @@ tr:nth-child(even) {
   clip: rect(0, 0, 0, 0);
   border: 0;
 }
-
 .no-tasks-message {
   padding: 20px;
   text-align: center;
@@ -659,40 +792,32 @@ tr:nth-child(even) {
   border-radius: 5px;
   margin-top: 20px;
 }
-
 .no-tasks-title {
   font-size: 18px;
   font-weight: bold;
   margin-bottom: 20px;
 }
-
 .nearest-tasks {
   margin-top: 20px;
   text-align: left;
 }
-
 .nearest-tasks h4 {
   margin-bottom: 10px;
   color: #555;
 }
-
 .nearest-tasks table {
   width: 100%;
   margin-top: 10px;
 }
-
 .nearest-tasks th, 
 .nearest-tasks td {
   padding: 8px;
   text-align: left;
   border: 1px solid #ddd;
 }
-
 .nearest-tasks th {
   background-color: #f2f2f2;
 }
-
-/* Стили для модального окна */
 .patient-modal-overlay {
   position: fixed;
   top: 0;
@@ -705,7 +830,6 @@ tr:nth-child(even) {
   align-items: center;
   z-index: 1000;
 }
-
 .patient-modal {
   background-color: white;
   padding: 25px;
@@ -717,7 +841,6 @@ tr:nth-child(even) {
   position: relative;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 }
-
 .close-button {
   position: absolute;
   top: 10px;
@@ -728,33 +851,27 @@ tr:nth-child(even) {
   cursor: pointer;
   color: #666;
 }
-
 .close-button:hover {
   color: #333;
 }
-
 .patient-info {
   display: grid;
   grid-template-columns: 1fr;
   gap: 12px;
 }
-
 .info-row {
   display: flex;
   justify-content: space-between;
   padding: 8px 0;
   border-bottom: 1px solid #eee;
 }
-
 .label {
   font-weight: bold;
   color: #555;
 }
-
 .value {
   text-align: right;
 }
-
 .medication-info {
   margin-top: 20px;
   padding-top: 15px;
@@ -766,7 +883,6 @@ tr:nth-child(even) {
   border: 1px solid #ddd;
   border-radius: 4px;
 }
-
 .save-button {
   margin-top: 10px;
   padding: 8px 15px;
@@ -776,21 +892,16 @@ tr:nth-child(even) {
   border-radius: 4px;
   cursor: pointer;
 }
-
 .save-button:hover {
   background-color: #45a049;
 }
-
 .save-button:disabled {
   background-color: #cccccc;
   cursor: not-allowed;
 }
-
-/* Делаем строки таблицы кликабельными */
 .journal tbody tr {
   cursor: pointer;
 }
-
 .journal tbody tr:hover {
   background-color: #f5f5f5;
 }
@@ -806,7 +917,6 @@ tr:nth-child(even) {
   align-items: center;
   z-index: 2000;
 }
-
 .fullscreen-menu {
   background-color: white;
   width: 90%;
@@ -816,12 +926,10 @@ tr:nth-child(even) {
   position: relative;
   animation: slideIn 0.3s ease-out;
 }
-
 @keyframes slideIn {
   from { transform: scale(0.9); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
 }
-
 .fullscreen-menu .close-button {
   position: absolute;
   top: 20px;
@@ -831,20 +939,17 @@ tr:nth-child(even) {
   border: none;
   cursor: pointer;
 }
-
 .fullscreen-menu h2 {
   font-size: 28px;
   margin-bottom: 30px;
   text-align: center;
   color: #333;
 }
-
 .menu-items {
   list-style: none;
   padding: 0;
   margin: 0;
 }
-
 .menu-items li {
   padding: 15px 20px;
   font-size: 20px;
@@ -852,12 +957,9 @@ tr:nth-child(even) {
   cursor: pointer;
   transition: background-color 0.2s;
 }
-
 .menu-items li:hover {
   background-color: #f5f5f5;
 }
-
-/* Стили для индикатора периода */
 .period-indicator {
   padding: 8px 15px;
   background-color: #f0f0f0;
@@ -865,8 +967,6 @@ tr:nth-child(even) {
   font-size: 14px;
   color: #555;
 }
-
-/* Дополнительные стили для календаря */
 .calendar-wrapper {
   position: absolute;
   top: 100%;
@@ -878,8 +978,76 @@ tr:nth-child(even) {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   margin-top: 5px;
 }
-
 .date-input-container {
   position: relative;
+}
+/* Стили для ошибок и модального окна подтверждения */
+.confirm-modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1001;
+}
+.confirm-modal {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  width: 300px;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+.confirm-buttons {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+.confirm-button,
+.cancel-button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.confirm-button {
+  background-color: #4CAF50;
+  color: white;
+}
+.confirm-button:hover {
+  background-color: #45a049;
+}
+.cancel-button {
+  background-color: #ccc;
+  color: black;
+}
+.cancel-button:hover {
+  background-color: #bbb;
+}
+.error-text {
+  color: red;
+  font-size: 12px;
+  margin-left: 10px;
+}
+
+/* Сортировка */
+.sort-indicator {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  margin-left: 5px;
+  font-size: 12px;
+  color: #999;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+.sort-indicator.asc {
+  color: #007bff;
+  transform: rotate(0deg);
+}
+.sort-indicator.desc {
+  color: #007bff;
+  transform: rotate(180deg);
 }
 </style>

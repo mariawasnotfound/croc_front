@@ -9,4 +9,8 @@ export async function logout() {
   if (!response.ok) {
     throw new Error("Ошибка выхода из системы");
   }
+
+  localStorage.removeItem('isAuthenticated');
+  localStorage.removeItem('organizationId');
+  localStorage.removeItem('departmentId');
 }

@@ -9,6 +9,10 @@ export async function getHeader() {
 
     if (!response.ok) {
       const errorText = await response.text();
+      if (response.status === 401) {
+        window.location.href = '/login';
+        return;
+      }
       throw new Error(errorText || "Ошибка загрузки данных о сотруднике");
     }
 
