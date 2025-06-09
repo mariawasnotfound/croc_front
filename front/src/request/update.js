@@ -40,7 +40,7 @@ async function sendMeasureUpdate(taskId, field, value) {
       'Authorization': `Bearer ${localStorage.getItem('token')}`
     },
     body: JSON.stringify({
-      result: value // ← Правильный формат: просто значение
+      result: value
     }),
     credentials: 'include'
   });

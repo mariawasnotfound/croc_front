@@ -284,7 +284,9 @@ export default {
       sortConfig: {
         key: null,
         direction: 1
-      }
+      },
+      isTaskConfirmModalVisible: false,
+      currentTaskToConfirm: null
     };
   },
   computed: {
@@ -623,6 +625,14 @@ export default {
     closeModal() {
       this.selectedPatient = null;
       this.selectedTask = null;
+    },
+    onTaskCheck(task) {
+      this.currentTaskToConfirm = task;
+      if (task.inactive) {
+        this.showTaskConfirmModal();
+      } else {
+        this.confirmTaskCheck(task);
+      }
     },
     async logout() {
       try {
