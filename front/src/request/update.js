@@ -23,7 +23,7 @@ async function processQueue() {
   } catch (error) {
     console.error(`Ошибка при обновлении ${field}:`, error.message);
     setTimeout(() => {
-      enqueueMeasureUpdate(taskId, field, value);
+      enqueueMeasureUpdate(taskId, field, value); // повтор попытки через 3 секунды
     }, 3000);
   }
 
@@ -40,7 +40,7 @@ async function sendMeasureUpdate(taskId, field, value) {
       'Authorization': `Bearer ${localStorage.getItem('token')}`
     },
     body: JSON.stringify({
-      result: { [field]: value }
+      result: value // ← Правильный формат: просто значение
     }),
     credentials: 'include'
   });

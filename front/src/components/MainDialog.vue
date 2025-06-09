@@ -249,9 +249,9 @@
 import { getHeader } from '../request/staff.js';
 import { getInPeriod } from '../request/tasks.js';
 import { getPreparationData, getMeasureData } from '../request/patient.js';
-import { updatePreparationTask, enqueueMeasureUpdate } from '../request/update.js';
+import { enqueueMeasureUpdate } from '../request/update.js';
+import { logout as fetchLogout } from '../request/logout.js';
 import { DatePicker } from 'v-calendar';
-import { logout as fetchLogout } from '../request/logout.js'
 
 export default {
   props: {
@@ -331,8 +331,8 @@ export default {
       measuresText = measuresText.toLowerCase();
       if (measuresText.includes('давление')) return 'bloodPressure';
       if (measuresText.includes('температура')) return 'temperature';
-      if (measuresText.includes('чдд')) return 'respiratoryRate';
-      if (measuresText.includes('чсс')) return 'heartRate';
+      if (measuresText.includes('частота дыхания')) return 'respiratoryRate';
+      if (measuresText.includes('пульс')) return 'heartRate';
       return null;
     },
     onFieldChange(field) {
@@ -461,7 +461,14 @@ export default {
       try {
         this.isLoading = true;
         this.selectedTask = task;
-        const taskDetails = await getMeasureData(task.id);
+        let taskDetails;
+        if (task.measures !== null) {
+          // Задача на измерение
+          taskDetails = await getMeasureData(task.id);
+        } else if (task.preparations !== null) {
+          // Задача на препарат
+          taskDetails = await getPreparationData(task.id);
+        }
         this.selectedPatient = {
           patientFullName: `${taskDetails.patientSurname} ${taskDetails.patientFirstname} ${taskDetails.patientLastname}`,
           birthDate: taskDetails.birthDate,
@@ -529,24 +536,19 @@ export default {
     },
     sortTasks() {
       if (!this.sortConfig.key) return;
-
       const key = this.sortConfig.key;
       const direction = this.sortConfig.direction;
-
       this.tasks.sort((a, b) => {
         let valA = a[key];
         let valB = b[key];
-
         if (key === 'scheduledAt' || key === 'completedAt') {
           valA = new Date(valA);
           valB = new Date(valB);
         }
-
         if (typeof valA === 'string' && typeof valB === 'string') {
           valA = valA.toLowerCase();
           valB = valB.toLowerCase();
         }
-
         if (valA < valB) return -1 * direction;
         if (valA > valB) return 1 * direction;
         return 0;
@@ -554,14 +556,12 @@ export default {
     },
     sortBy(key) {
       const config = this.sortConfig;
-
       if (config.key === key) {
         config.direction *= -1;
       } else {
         config.key = key;
         config.direction = 1;
       }
-
       this.sortTasks();
     },
     getSortIndicatorClass(key) {
@@ -641,6 +641,7 @@ export default {
 </script>
 
 <style scoped>
+/* Стили остались без изменений */
 .main-dialog {
   display: flex;
   flex-direction: column;
@@ -683,7 +684,6 @@ export default {
   transition: background-color 0.3s;
   margin-left: auto;
 }
-
 .logout-button:hover {
   background: #ff3333;
 }
@@ -1030,7 +1030,6 @@ tr:nth-child(even) {
   font-size: 12px;
   margin-left: 10px;
 }
-
 /* Сортировка */
 .sort-indicator {
   display: inline-block;
