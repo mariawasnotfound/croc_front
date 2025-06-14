@@ -1,5 +1,29 @@
-# Vue 3 + Vite
-
-This template should help get you started developing with Vue 3 in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
-
-Learn more about IDE Support for Vue in the [Vue Docs Scaling up Guide](https://vuejs.org/guide/scaling-up/tooling.html#ide-support).
+### Инструкция по установке:
+####
+Создайте БД с помощью скрипта из **`db/create_db.sql`**
+####
+Заполните БД с помощью скрипта из **`db/doll_db.sql`**
+####
+Заполните **`.env`** файл **`back`** данными:
+- `HOST` - адрес сервера
+- `PORT` - порт сервера
+- `SECRET` - секрет сервера
+- `DB_HOST` - адрес СУБД
+- `DB_PORT` - порт СУБД
+- `DB_USER` - учётная запись в СУБД
+- `DB_PASSWORD` - пароль от учётной записи СУБД
+- `DB_DATABASE` - название БД
+####
+Запустите СУБД по заданным адресу и порту
+####
+Находясь в **`back`**:
+####
+  1. Выполните команду **npm install**
+####
+  2. Запустите сервер командой **node src/server.js** 
+####
+Находясь в **`front`**:
+####
+  1. Выполните команду **npm install**
+####
+  2. Запустите проект командой **npm run dev**
