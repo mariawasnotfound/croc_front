@@ -24,6 +24,7 @@ export default {
         await login(this.username, this.password);
         this.$emit("login-success");
         localStorage.setItem('isAuthenticated', 'true');
+        sessionStorage.setItem('isPageReload', 'false');
       } catch (error) {
         alert(error.message);
       }

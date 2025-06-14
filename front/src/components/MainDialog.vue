@@ -169,6 +169,13 @@
             <span class="label">Дата и время задачи:</span>
             <span class="value">{{ formatDateTime(selectedTask.scheduledAt) }}</span>
           </div>
+          <!-- Кнопка "Выполнить" для лекарств -->
+          <button v-if="selectedPatient.medicationInfo && !selectedTask.completedAt"
+                  @click="executeMedicationTask"
+                  class="save-button"
+                  :disabled="isLoading">
+            {{ isLoading ? 'Сохранение...' : 'Выполнить' }}
+          </button>
           <!-- Показатели -->
           <div class="vital-signs" v-if="selectedPatient.measureType">
             <h4>Показатели:</h4>
@@ -204,7 +211,7 @@
                      @input="onFieldChange('temperature')" />
               <span v-if="validationErrors.temperature" class="error-text">{{ validationErrors.temperature }}</span>
             </div>
-            <button @click="showSaveConfirmation" class="save-button" :disabled="isLoading">
+            <button @click="saveAllMeasures" class="save-button" :disabled="isLoading">
               {{ isLoading ? 'Сохранение...' : 'Сохранить показатели' }}
             </button>
           </div>
@@ -231,17 +238,29 @@
         </div>
       </div>
     </div>
-    <!-- Модальное окно подтверждения -->
-    <div v-if="isConfirmModalVisible" class="confirm-modal-overlay" @click.self="hideSaveConfirmation">
+    <!-- Модальное окно подтверждения задачи -->
+    <div v-if="isTaskConfirmModalVisible" class="confirm-modal-overlay" @click.self="hideTaskConfirmModal">
       <div class="confirm-modal">
         <h4>Подтверждение действия</h4>
-        <p>Вы уверены, что хотите сохранить показатель?</p>
+        <p>Вы уверены, что хотите отметить задачу как выполненную?</p>
         <div class="confirm-buttons">
-          <button @click="saveAllMeasuresConfirmed" class="confirm-button">Да</button>
-          <button @click="hideSaveConfirmation" class="cancel-button">Нет</button>
+          <button @click="confirmTaskCheck" class="confirm-button">Да</button>
+          <button @click="hideTaskConfirmModal" class="cancel-button">Нет</button>
         </div>
       </div>
     </div>
+    <!-- Модальное окно подтверждения редактирования -->
+    <div v-if="isEditConfirmModalVisible" class="confirm-modal-overlay" @click.self="hideEditConfirmModal">
+      <div class="confirm-modal">
+        <h4>Подтверждение действия</h4>
+        <p>Вы хотите отредактировать выполненную задачу?</p>
+        <div class="confirm-buttons">
+          <button @click="confirmEditTask" class="confirm-button">Да</button>
+          <button @click="hideEditConfirmModal" class="cancel-button">Нет</button>
+        </div>
+      </div>
+    </div>
+    
   </div>
 </template>
 
@@ -249,7 +268,7 @@
 import { getHeader } from '../request/staff.js';
 import { getInPeriod } from '../request/tasks.js';
 import { getPreparationData, getMeasureData } from '../request/patient.js';
-import { enqueueMeasureUpdate } from '../request/update.js';
+import { enqueueMeasureUpdate, resetTask } from '../request/update.js';
 import { logout as fetchLogout } from '../request/logout.js';
 import { DatePicker } from 'v-calendar';
 
@@ -270,6 +289,7 @@ export default {
       position: '',
       staffName: '',
       tasks: [],
+      isEditConfirmModalVisible: false,
       dateRangeInput: `${dateStr} - ${dateStr}`,
       calendarRange: { start: new Date(), end: new Date() },
       calendarVisible: false,
@@ -402,9 +422,30 @@ export default {
     hideSaveConfirmation() {
       this.isConfirmModalVisible = false;
     },
-    async saveAllMeasuresConfirmed() {
+    showMedicationConfirm() {
+      this.isConfirmModalVisible = true;
+    },
+    async executeMedicationTask() {
       this.hideSaveConfirmation();
-      await this.saveAllMeasures();
+      try {
+        this.isLoading = true;
+        await enqueueMeasureUpdate(this.selectedTask.id, 'completedAt', new Date().toISOString());
+        this.selectedTask.completedAt = new Date().toISOString();
+        this.selectedTask.inactive = true;
+        this.closeModal();
+      } catch (error) {
+        console.error('Ошибка при выполнении задачи:', error);
+        this.error = 'Не удалось выполнить задачу';
+      } finally {
+        this.isLoading = false;
+      }
+    },
+    async saveAllMeasuresConfirmed() {
+      if (this.selectedPatient.medicationInfo) {
+        await this.executeMedicationTask();
+      } else {
+        await this.saveAllMeasures();
+      }
     },
     async loadData() {
       this.isLoading = true;
@@ -461,43 +502,47 @@ export default {
     },
     async showPatientDetails(task) {
       try {
-        this.isLoading = true;
-        this.selectedTask = task;
-        let taskDetails;
-        if (task.measures !== null) {
-          // Задача на измерение
-          taskDetails = await getMeasureData(task.id);
-        } else if (task.preparations !== null) {
-          // Задача на препарат
-          taskDetails = await getPreparationData(task.id);
-        }
-        this.selectedPatient = {
-          patientFullName: `${taskDetails.patientSurname} ${taskDetails.patientFirstname} ${taskDetails.patientLastname}`,
-          birthDate: taskDetails.birthDate,
-          ward: taskDetails.ward,
-          doctorFullName: `${taskDetails.doctorSurname} ${taskDetails.doctorFirstname} ${taskDetails.doctorLastname}`,
-          diagnosis: taskDetails.diagnosis,
-          allergy: taskDetails.allergy || 'Нет данных'
-        };
-        const measureType = this.detectMeasureType(task.measures);
-        this.selectedPatient.measureType = measureType;
-        if (measureType) {
-          this.selectedPatient[measureType] = taskDetails.result || '';
-        }
-        if (task.preparations !== null) {
-          this.selectedPatient.medicationInfo = {
-            name: taskDetails.taskName,
-            dosage: taskDetails.dosage,
-            quantity: taskDetails.quantity,
-            narcotic: taskDetails.narcotic ? 'Да' : 'Нет'
-          };
-        }
-      } catch (error) {
-        console.error('Ошибка при открытии деталей пациента:', error);
-        this.error = 'Не удалось загрузить информацию о пациенте';
-      } finally {
-        this.isLoading = false;
+      this.isLoading = true;
+      this.selectedTask = task;
+
+      let taskDetails;
+      if (task.measures !== null) {
+        taskDetails = await getMeasureData(task.id);
+      } else if (task.preparations !== null) {
+        taskDetails = await getPreparationData(task.id);
       }
+
+      this.selectedPatient = {
+        patientFullName: `${taskDetails.patientSurname} ${taskDetails.patientFirstname} ${taskDetails.patientLastname}`,
+        birthDate: taskDetails.birthDate,
+        ward: taskDetails.ward,
+        doctorFullName: `${taskDetails.doctorSurname} ${taskDetails.doctorFirstname} ${taskDetails.doctorLastname}`,
+        diagnosis: taskDetails.diagnosis,
+        allergy: taskDetails.allergy || 'Нет данных'
+      };
+
+      const measureType = this.detectMeasureType(task.measures);
+      this.selectedPatient.measureType = measureType;
+
+      if (measureType) {
+        this.selectedPatient[measureType] = taskDetails.result || '';
+      }
+
+      if (task.preparations !== null) {
+        this.selectedPatient.medicationInfo = {
+          name: taskDetails.taskName,
+          dosage: taskDetails.dosage,
+          quantity: taskDetails.quantity,
+          narcotic: taskDetails.narcotic ? 'Да' : 'Нет'
+        };
+      }
+
+    } catch (error) {
+      console.error('Ошибка при открытии деталей пациента:', error);
+      this.error = 'Не удалось загрузить информацию о пациенте';
+    } finally {
+      this.isLoading = false;
+    }
     },
     async saveAllMeasures() {
       if (!this.selectedTask || !this.selectedPatient) return;
@@ -541,16 +586,24 @@ export default {
       const key = this.sortConfig.key;
       const direction = this.sortConfig.direction;
       this.tasks.sort((a, b) => {
+        // Сначала невыполненные задачи
+        if (a.inactive !== b.inactive) {
+          return a.inactive ? 1 : -1;
+        }
+
         let valA = a[key];
         let valB = b[key];
+
         if (key === 'scheduledAt' || key === 'completedAt') {
           valA = new Date(valA);
           valB = new Date(valB);
         }
+
         if (typeof valA === 'string' && typeof valB === 'string') {
           valA = valA.toLowerCase();
           valB = valB.toLowerCase();
         }
+
         if (valA < valB) return -1 * direction;
         if (valA > valB) return 1 * direction;
         return 0;
@@ -596,6 +649,17 @@ export default {
       this.calendarRange = range;
       this.closeCalendar();
     },
+    showEditConfirmModal() {
+      this.isEditConfirmModalVisible = true;
+    },
+    hideEditConfirmModal() {
+      this.isEditConfirmModalVisible = false;
+      this.currentTaskToConfirm = null;
+    },
+    async confirmEditTask() {
+      this.hideEditConfirmModal();
+      this.showPatientDetails(this.currentTaskToConfirm);
+    },
     handleDateInputBlur() {
       const dates = this.dateRangeInput.split(' - ');
       if (dates.length === 2) {
@@ -626,12 +690,83 @@ export default {
       this.selectedPatient = null;
       this.selectedTask = null;
     },
-    onTaskCheck(task) {
+    showTaskConfirmModal() {
+      this.isTaskConfirmModalVisible = true;
+    },
+    hideTaskConfirmModal() {
+      this.isTaskConfirmModalVisible = false;
+      this.currentTaskToConfirm = null;
+    },
+    async confirmTaskCheck() {
+      const task = this.currentTaskToConfirm;
+      if (!task) return;
+
+      try {
+        if (task.inactive) {
+          // Если пользователь снял галочку — сброс задачи
+          await this.resetTask(task);
+        } else {
+          // Если пользователь поставил галочку — отметка как выполненная
+          await enqueueMeasureUpdate(task.id, 'completedAt', new Date().toISOString());
+          task.completedAt = new Date().toISOString();
+          task.inactive = true;
+          this.closeModal();
+        }
+      } catch (error) {
+        console.error('Ошибка при обновлении задачи:', error.message);
+        this.error = 'Не удалось сохранить изменения';
+      } finally {
+        this.hideTaskConfirmModal();
+      }
+    },
+    async onTaskCheck(task) {
       this.currentTaskToConfirm = task;
-      if (task.inactive) {
+      if (task.completedAt) {
+        this.showEditConfirmModal();
+      } else if (task.inactive) {
         this.showTaskConfirmModal();
       } else {
-        this.confirmTaskCheck(task);
+        try {
+          await resetTask(task.id);
+          task.completedAt = null;
+          task.inactive = false;
+
+          if (this.selectedPatient && this.selectedPatient.measureType) {
+            this.selectedPatient[this.selectedPatient.measureType] = '';
+          }
+
+          this.closeModal();
+        } catch (error) {
+          console.error('Ошибка при сбросе задачи:', error.message);
+          this.error = 'Не удалось сбросить задачу';
+        }
+      }
+    },
+    showResetConfirmModal() {
+      this.isResetConfirmModalVisible = true;
+    },
+    hideResetConfirmModal() {
+      this.isConfirmModalVisible = false;
+      this.currentTaskToConfirm = null;
+    },
+    async confirmResetTask() {
+      await this.resetTask(this.currentTaskToConfirm);
+      this.hideResetConfirmModal();
+    },
+    async confirmTaskCheck() {
+      const task = this.currentTaskToConfirm;
+      if (!task) return;
+
+      try {
+        await enqueueMeasureUpdate(task.id, 'completedAt', new Date().toISOString());
+        task.completedAt = new Date().toISOString();
+        task.inactive = true;
+        this.closeModal();
+      } catch (error) {
+        console.error('Ошибка при отметке задачи как выполненной:', error);
+        this.error = 'Не удалось сохранить изменения';
+      } finally {
+        this.hideTaskConfirmModal();
       }
     },
     async logout() {
@@ -651,7 +786,6 @@ export default {
 </script>
 
 <style scoped>
-/* Стили остались без изменений */
 .main-dialog {
   display: flex;
   flex-direction: column;

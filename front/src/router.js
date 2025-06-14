@@ -25,6 +25,8 @@ router.beforeEach((to, from, next) => {
   const isAuthenticated = localStorage.getItem('isAuthenticated');
   if (to.meta.requiresAuth && !isAuthenticated) {
     next('/login');
+  } else if (to.path === '/login' && isAuthenticated) {
+    next('/select');
   } else {
     next();
   }

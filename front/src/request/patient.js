@@ -9,9 +9,15 @@ export async function getPreparationData(taskId) {
   if (!response.ok) {
     throw new Error('Ошибка загрузки данных о препарате');
   }
-  
+
   const data = await response.json();
-  return data.task[0];
+  const taskData = data.task && Array.isArray(data.task) ? data.task[0] : data.task;
+
+  if (!taskData) {
+    throw new Error('Нет данных о препарате');
+  }
+
+  return taskData;
 }
 
 export async function getMeasureData(taskId) {
@@ -23,7 +29,13 @@ export async function getMeasureData(taskId) {
   if (!response.ok) {
     throw new Error('Ошибка загрузки данных об измерении');
   }
-  
+
   const data = await response.json();
-  return data.task[0];
+  const taskData = data.task && Array.isArray(data.task) ? data.task[0] : data.task;
+
+  if (!taskData) {
+    throw new Error('Нет данных об измерении');
+  }
+
+  return taskData;
 }

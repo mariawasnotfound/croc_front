@@ -60,8 +60,7 @@ export default {
   data() {
     return {
       menuItems: [
-        { route: '/dashboard', text: 'Главная', icon: '⌂' },
-        { route: '/tasks', text: 'Мои задачи', icon: '✓' },
+        { route: '/main', text: 'Главная', icon: '⌂' },
         { route: '/schedule', text: 'Расписание', icon: '⏰' },
         { route: '/patients', text: 'Пациенты', icon: '⚕' },
         { route: '/reports', text: 'Отчеты', icon: '📊' },

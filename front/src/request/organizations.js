@@ -11,4 +11,4 @@ export async function getOrganizationsOfStaff() {
   }
 
   return await response.json();
-}
+} 
