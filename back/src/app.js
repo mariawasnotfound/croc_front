@@ -17,7 +17,7 @@ const app = express();
 
 const corsOptions = {
   origin: 'http://localhost:5173',
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'UPDATE', 'DELETE', 'OPTIONS'],
   credentials: true
 };
 app.use(cors(corsOptions));
@@ -27,6 +27,7 @@ app.use(
         secret: process.env.SECRET,
         resave: false,
         saveUninitialized: false,
+        credentials: 'include',
         cookie: {
             maxAge: 1000 * 60 * 60 * 12,
         }
