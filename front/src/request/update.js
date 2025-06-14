@@ -4,8 +4,14 @@ const updateQueue = [];
 let isProcessing = false;
 
 // Добавляет задачу в очередь на обновление
-export function enqueueMeasureUpdate(taskId, field, value) {
-  updateQueue.push({ taskId, field, value });
+export function enqueueMeasureUpdate(taskId, data) {
+  updateQueue.push({ taskId, data, type: 'measure' });
+  processQueue();
+}
+
+// Добавляет задачу препарата в очередь на обновление
+export function enqueuePreparationUpdate(taskId, data) {
+  updateQueue.push({ taskId, data, type: 'preparation' });
   processQueue();
 }
 
@@ -14,15 +20,23 @@ async function processQueue() {
   if (isProcessing || updateQueue.length === 0) return;
   isProcessing = true;
 
-  const { taskId, field, value } = updateQueue.shift();
+  const { taskId, data, type } = updateQueue.shift();
 
   try {
-    await sendMeasureUpdate(taskId, field, value);
-    console.log(`Поле ${field} успешно обновлено`);
+    if (type === 'preparation') {
+      await sendPreparationUpdate(taskId, data);
+    } else {
+      await sendMeasureUpdate(taskId, data);
+    }
+    console.log(`Задача ${taskId} успешно обновлена`);
   } catch (error) {
-    console.error(`Ошибка при обновлении ${field}:`, error.message);
+    console.error(`Ошибка при обновлении задачи:`, error.message);
     setTimeout(() => {
-      enqueueMeasureUpdate(taskId, field, value);
+      if (type === 'preparation') {
+        enqueuePreparationUpdate(taskId, data);
+      } else {
+        enqueueMeasureUpdate(taskId, data);
+      }
     }, 3000);
   }
 
@@ -30,22 +44,10 @@ async function processQueue() {
   processQueue();
 }
 
-// Отправляет PATCH-запрос на сервер
-async function sendMeasureUpdate(taskId, field, value) {
+// Отправляет PATCH-запрос на сервер для измерений
+async function sendMeasureUpdate(taskId, data) {
   let endpoint = `${URL}/measure-book/task/${taskId}`;
-  let body;
-
-  if (field === 'completedAt') {
-    body = JSON.stringify({
-      completedAt: value
-    });
-  } else {
-    const numericValue = parseFloat(value.replace(',', '.'));
-
-    body = JSON.stringify({
-      result: isNaN(numericValue) ? value : numericValue
-    });
-  }
+  let body = JSON.stringify(data);
 
   const response = await fetch(endpoint, {
     method: 'PATCH',
@@ -57,19 +59,49 @@ async function sendMeasureUpdate(taskId, field, value) {
     credentials: 'include'
   });
 
-  let data = null;
+  let respData = null;
   try {
     const text = await response.text();
-    if (text.trim()) data = JSON.parse(text);
+    if (text.trim()) respData = JSON.parse(text);
   } catch (e) {
     throw new Error('Не удалось разобрать ответ от сервера');
   }
 
   if (!response.ok) {
-    throw new Error(data?.message || data?.error || 'Неизвестная ошибка');
+    throw new Error(respData?.message || respData?.error || 'Неизвестная ошибка');
   }
 
-  return data;
+  return respData;
+}
+
+// Отправляет PATCH-запрос на сервер для препаратов
+async function sendPreparationUpdate(taskId, data) {
+  let endpoint = `${URL}/preparation-book/task/${taskId}`;
+  let body = JSON.stringify(data);
+
+  const response = await fetch(endpoint, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${localStorage.getItem('token')}`
+    },
+    body,
+    credentials: 'include'
+  });
+
+  let respData = null;
+  try {
+    const text = await response.text();
+    if (text.trim()) respData = JSON.parse(text);
+  } catch (e) {
+    throw new Error('Не удалось разобрать ответ от сервера');
+  }
+
+  if (!response.ok) {
+    throw new Error(respData?.message || respData?.error || 'Неизвестная ошибка');
+  }
+
+  return respData;
 }
 
 export async function resetTask(taskId) {
@@ -103,6 +135,7 @@ export async function resetTask(taskId) {
   return data;
 }
 
+// Старые функции (для совместимости)
 export async function updatePreparationTask(taskId, data) {
   const response = await fetch(`${URL}/preparation-book/task/${taskId}`, {
     method: 'PATCH',
